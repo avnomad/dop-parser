@@ -47,8 +47,10 @@ unittest
 		"((5 * a) + (b - 2.2))");
 }
 
-Expression parseExpression(char[] input, immutable string[] operators)
+Expression parseExpression(char[] input)
 {
+	immutable string[] operators = ["+","-","*","/","%"];
+
 	Expression[] stack;
 
 	foreach(token; std.array.splitter(input))
