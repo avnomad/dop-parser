@@ -1,71 +1,75 @@
-import std.stdio, std.string, std.algorithm, std.array;
+import std.stdio, std.string, std.algorithm, std.array, std.range;
 
 interface Expression
 {
 	string serialize();
 }
 
-class BinaryOperator : Expression
+class ExpressionAstNode : Expression
 {
-	private string operation;
-	private Expression left;
-	private Expression right;
+	private string iOperator;
+	private Expression[] iOperands;
 	
-	this(string op, Expression l, Expression r)
+	this(string operator, Expression[] operands)
 	{
-		left = l;
-		right = r;
-		operation = op;
+		iOperator = operator;
+		iOperands = operands;
 	}
 	
 	override string serialize()
 	{
-		return "(" ~ left.serialize() ~ " " ~ operation ~ " " ~ right.serialize() ~ ")";
+		string s = "( " ~ iOperator ~ " ";
+		foreach(op; iOperands)
+		{
+			s ~= ", " ~ op.serialize();
+		}
+		return s ~ ")";
 	}
 }
 
 class LiteralOperand : Expression
 {
-	private string lexeme;
+	private string iLexeme;
 	
-	this(string lex)
+	this(string lexeme)
 	{
-		lexeme = lex;
+		iLexeme = lexeme;
 	}
 	
 	override string serialize()	
 	{
-		return lexeme;
+		return iLexeme;
 	}
 }
 	
 unittest
 {
-	assert((new BinaryOperator("+",
-		new BinaryOperator("*",new LiteralOperand("5"),new LiteralOperand("a")),
-		new BinaryOperator("-",new LiteralOperand("b"),new LiteralOperand("2.2")))).serialize() ==
-		"((5 * a) + (b - 2.2))");
+	assert((new ExpressionAstNode("+",[
+		new ExpressionAstNode("*",[new LiteralOperand("5"),new LiteralOperand("a")]),
+		new ExpressionAstNode("-",[new LiteralOperand("b"),new LiteralOperand("2.2")])])).serialize() ==
+		"( + , ( * , 5, a), ( - , b, 2.2))");
 }
 
 Expression parseExpression(char[] input)
 {
-	immutable string[] operators = ["+","-","*","/","%"];
-
+	immutable uint[string] operators = ["+":2,"-":2,"*":2,"/":2,"%":2,"?":3,"!":1,"$":1]; // (operator symbol,#operands) pairs
 	Expression[] stack;
 
 	foreach(token; std.array.splitter(input))
 	{
-		if(find(operators,token)==[]) // not an operator
+		if(!(token in operators)) // not an operator
 		{
 			stack ~= new LiteralOperand(token.idup);
 		}
 		else // an operator
 		{
-			auto right = stack.back();
-			stack.popBack();
-			auto left = stack.back();
-			stack.popBack();
-			stack ~= new BinaryOperator(token.idup,left,right);
+			Expression[] operands = new Expression[operators[token]];
+			foreach(ref op; retro(operands))
+			{
+				op = stack.back();
+				stack.popBack();
+			} // end foreach
+			stack ~= new ExpressionAstNode(token.idup,operands);
 		} // end else
 	} // end foreach
 	if(stack.length == 1)
@@ -73,3 +77,29 @@ Expression parseExpression(char[] input)
 	else
 		return null;
 } // end function parseExpression
+
+unittest
+{
+	assert(parseExpression("2 3 +".dup).serialize() == "( + , 2, 3)");
+	assert(parseExpression("2 3 -".dup).serialize() == "( - , 2, 3)");
+	assert(parseExpression("2 3 *".dup).serialize() == "( * , 2, 3)");
+	assert(parseExpression("2 3 /".dup).serialize() == "( / , 2, 3)");
+	assert(parseExpression("2 3 %".dup).serialize() == "( % , 2, 3)");
+	assert(parseExpression("2 3 4 ?".dup).serialize() == "( ? , 2, 3, 4)");
+	assert(parseExpression("2 !".dup).serialize() == "( ! , 2)");
+	assert(parseExpression("2 $".dup).serialize() == "( $ , 2)");
+	assert(parseExpression("a b +".dup).serialize() == "( + , a, b)");
+	assert(parseExpression("a b + c -".dup).serialize() == "( - , ( + , a, b), c)");
+	assert(parseExpression("c a b + -".dup).serialize() == "( - , c, ( + , a, b))");
+
+	assert(parseExpression("2 3 - 3.1 + 2 5 ? 1 ! 2 $ % /".dup).serialize() == 
+			"( / , ( ? , ( + , ( - , 2, 3), 3.1), 2, 5), ( % , ( ! , 1), ( $ , 2)))");
+	assert(parseExpression("1 ! 2 3 - $ $ ! *".dup).serialize() == 
+			"( * , ( ! , 1), ( ! , ( $ , ( $ , ( - , 2, 3)))))");
+}
+
+
+
+
+
+
