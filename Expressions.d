@@ -50,7 +50,7 @@ unittest
 		"( + , ( * , 5, a), ( - , b, 2.2))");
 }
 
-Expression parseExpression(char[] input)
+Expression parsePostfixExpression(char[] input)
 {
 	immutable uint[string] operators = ["+":2,"-":2,"*":2,"/":2,"%":2,"?":3,"!":1,"$":1]; // (operator symbol,#operands) pairs
 	Expression[] stack;
@@ -76,30 +76,24 @@ Expression parseExpression(char[] input)
 		return stack.back();
 	else
 		return null;
-} // end function parseExpression
+} // end function parsePostfixExpression
 
 unittest
 {
-	assert(parseExpression("2 3 +".dup).serialize() == "( + , 2, 3)");
-	assert(parseExpression("2 3 -".dup).serialize() == "( - , 2, 3)");
-	assert(parseExpression("2 3 *".dup).serialize() == "( * , 2, 3)");
-	assert(parseExpression("2 3 /".dup).serialize() == "( / , 2, 3)");
-	assert(parseExpression("2 3 %".dup).serialize() == "( % , 2, 3)");
-	assert(parseExpression("2 3 4 ?".dup).serialize() == "( ? , 2, 3, 4)");
-	assert(parseExpression("2 !".dup).serialize() == "( ! , 2)");
-	assert(parseExpression("2 $".dup).serialize() == "( $ , 2)");
-	assert(parseExpression("a b +".dup).serialize() == "( + , a, b)");
-	assert(parseExpression("a b + c -".dup).serialize() == "( - , ( + , a, b), c)");
-	assert(parseExpression("c a b + -".dup).serialize() == "( - , c, ( + , a, b))");
+	assert(parsePostfixExpression("2 3 +".dup).serialize() == "( + , 2, 3)");
+	assert(parsePostfixExpression("2 3 -".dup).serialize() == "( - , 2, 3)");
+	assert(parsePostfixExpression("2 3 *".dup).serialize() == "( * , 2, 3)");
+	assert(parsePostfixExpression("2 3 /".dup).serialize() == "( / , 2, 3)");
+	assert(parsePostfixExpression("2 3 %".dup).serialize() == "( % , 2, 3)");
+	assert(parsePostfixExpression("2 3 4 ?".dup).serialize() == "( ? , 2, 3, 4)");
+	assert(parsePostfixExpression("2 !".dup).serialize() == "( ! , 2)");
+	assert(parsePostfixExpression("2 $".dup).serialize() == "( $ , 2)");
+	assert(parsePostfixExpression("a b +".dup).serialize() == "( + , a, b)");
+	assert(parsePostfixExpression("a b + c -".dup).serialize() == "( - , ( + , a, b), c)");
+	assert(parsePostfixExpression("c a b + -".dup).serialize() == "( - , c, ( + , a, b))");
 
-	assert(parseExpression("2 3 - 3.1 + 2 5 ? 1 ! 2 $ % /".dup).serialize() == 
+	assert(parsePostfixExpression("2 3 - 3.1 + 2 5 ? 1 ! 2 $ % /".dup).serialize() == 
 			"( / , ( ? , ( + , ( - , 2, 3), 3.1), 2, 5), ( % , ( ! , 1), ( $ , 2)))");
-	assert(parseExpression("1 ! 2 3 - $ $ ! *".dup).serialize() == 
+	assert(parsePostfixExpression("1 ! 2 3 - $ $ ! *".dup).serialize() == 
 			"( * , ( ! , 1), ( ! , ( $ , ( $ , ( - , 2, 3)))))");
 }
-
-
-
-
-
-
