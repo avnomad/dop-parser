@@ -235,8 +235,7 @@ Expression parseInfixExpression(char[] input)
 	} // end function dispatchToken
 
 
-	symbols ~= new Initiator(bnc);	// should replace with explicit type/value
-		// used as a sentinel to avoid checking for empty stack
+	symbols ~= new Initiator(bnc);	// used as a sentinel to avoid checking for empty stack
 	foreach(token; std.array.splitter(input))
 	{
 		dispatchToken(token);
@@ -245,7 +244,7 @@ Expression parseInfixExpression(char[] input)
 	
 	
 	if(symbols.length == 1)
-		return (cast(ExpressionAstNode)symbols.back()).operands[0];
+		return (cast(ExpressionAstNode)symbols.back()).operands[0];	// remove the node created for sentinel
 	else
 		return null;
 } // end function parseInfixExpression
@@ -267,6 +266,61 @@ unittest
 	assert(parseInfixExpression("a += b += c".dup).serialize() == "( += , a, ( += , b, c))");
 	assert(parseInfixExpression("a = b += c".dup).serialize() == "( = , a, ( += , b, c))");
 	assert(parseInfixExpression("a = b += c = d += e".dup).serialize() == "( = , a, ( += , b, ( = , c, ( += , d, e))))");
+	assert(parseInfixExpression("2 + 3 * 4".dup).serialize() == "( + , 2, ( * , 3, 4))");
+	assert(parseInfixExpression("2 * 3 + 4".dup).serialize() == "( + , ( * , 2, 3), 4)");
+	assert(parseInfixExpression("2 - 3 / 4".dup).serialize() == "( - , 2, ( / , 3, 4))");
+	assert(parseInfixExpression("2 / 3 - 4".dup).serialize() == "( - , ( / , 2, 3), 4)");
+	assert(parseInfixExpression("2 = 3 .. 4".dup).serialize() == "( = , 2, ( .. , 3, 4))");
+	assert(parseInfixExpression("2 .. 3 = 4".dup).serialize() == "( = , ( .. , 2, 3), 4)");
+	assert(parseInfixExpression("2 += 3 .. 4".dup).serialize() == "( += , 2, ( .. , 3, 4))");
+	assert(parseInfixExpression("2 .. 3 += 4".dup).serialize() == "( += , ( .. , 2, 3), 4)");
+	assert(parseInfixExpression("a += b = 3 * b + 2".dup).serialize() == "( += , a, ( = , b, ( + , ( * , 3, b), 2)))");
+	
+	assert(parseInfixExpression("( )".dup).serialize() == "( ( )");
+	assert(parseInfixExpression("[ ]".dup).serialize() == "( [ )");
+	assert(parseInfixExpression("{ }".dup).serialize() == "( { )");
+	assert(parseInfixExpression("( 2 )".dup).serialize() == "( ( , 2)");
+	assert(parseInfixExpression("[ 2 ]".dup).serialize() == "( [ , 2)");
+	assert(parseInfixExpression("{ 2 }".dup).serialize() == "( { , 2)");
+	assert(parseInfixExpression("( 2 , 3 )".dup).serialize() == "( ( , 2, 3)");
+	assert(parseInfixExpression("[ 2 , 3 ]".dup).serialize() == "( [ , 2, 3)");
+	assert(parseInfixExpression("{ 2 . 3 }".dup).serialize() == "( { , 2, 3)");
+	assert(parseInfixExpression("( 2 , 3 , 4 )".dup).serialize() == "( ( , 2, 3, 4)");
+	assert(parseInfixExpression("[ 2 , 3 , 4 ]".dup).serialize() == "( [ , 2, 3, 4)");
+	assert(parseInfixExpression("{ 2 . 3 . 4 }".dup).serialize() == "( { , 2, 3, 4)");
+	assert(parseInfixExpression("( a + b )".dup).serialize() == "( ( , ( + , a, b))");
+	assert(parseInfixExpression("[ a + b ]".dup).serialize() == "( [ , ( + , a, b))");
+	assert(parseInfixExpression("{ a + b }".dup).serialize() == "( { , ( + , a, b))");
+	assert(parseInfixExpression("( a + b , 3 )".dup).serialize() == "( ( , ( + , a, b), 3)");
+	assert(parseInfixExpression("[ a + b , 3 ]".dup).serialize() == "( [ , ( + , a, b), 3)");
+	assert(parseInfixExpression("{ a + b . 3 }".dup).serialize() == "( { , ( + , a, b), 3)");
+	assert(parseInfixExpression("( a + b , 3 , 4 )".dup).serialize() == "( ( , ( + , a, b), 3, 4)");
+	assert(parseInfixExpression("[ a + b , 3 , 4 ]".dup).serialize() == "( [ , ( + , a, b), 3, 4)");
+	assert(parseInfixExpression("{ a + b . 3 . 4 }".dup).serialize() == "( { , ( + , a, b), 3, 4)");
+	assert(parseInfixExpression("( a + b , c .. d )".dup).serialize() == "( ( , ( + , a, b), ( .. , c, d))");
+	assert(parseInfixExpression("[ a + b , c .. d ]".dup).serialize() == "( [ , ( + , a, b), ( .. , c, d))");
+	assert(parseInfixExpression("{ a + b . c .. d }".dup).serialize() == "( { , ( + , a, b), ( .. , c, d))");
+	assert(parseInfixExpression("( a + b , c .. d , 4 )".dup).serialize() == "( ( , ( + , a, b), ( .. , c, d), 4)");
+	assert(parseInfixExpression("[ a + b , c .. d , 4 ]".dup).serialize() == "( [ , ( + , a, b), ( .. , c, d), 4)");
+	assert(parseInfixExpression("{ a + b . c .. d . 4 }".dup).serialize() == "( { , ( + , a, b), ( .. , c, d), 4)");
+	assert(parseInfixExpression("( a + b , c .. d , e * f )".dup).serialize() == "( ( , ( + , a, b), ( .. , c, d), ( * , e, f))");
+	assert(parseInfixExpression("[ a + b , c .. d , e * f ]".dup).serialize() == "( [ , ( + , a, b), ( .. , c, d), ( * , e, f))");
+	assert(parseInfixExpression("{ a + b . c .. d . e * f }".dup).serialize() == "( { , ( + , a, b), ( .. , c, d), ( * , e, f))");
+
+	assert(parseInfixExpression("( a + b ) + c".dup).serialize() == "( + , ( ( , ( + , a, b)), c)");
+	assert(parseInfixExpression("( a - b ) - c".dup).serialize() == "( - , ( ( , ( - , a, b)), c)");
+	assert(parseInfixExpression("a + ( b + c )".dup).serialize() == "( + , a, ( ( , ( + , b, c)))");
+	assert(parseInfixExpression("a - ( b - c )".dup).serialize() == "( - , a, ( ( , ( - , b, c)))");
+	assert(parseInfixExpression("[ a + b ] + c".dup).serialize() == "( + , ( [ , ( + , a, b)), c)");
+	assert(parseInfixExpression("[ a - b ] - c".dup).serialize() == "( - , ( [ , ( - , a, b)), c)");
+	assert(parseInfixExpression("a + [ b + c ]".dup).serialize() == "( + , a, ( [ , ( + , b, c)))");
+	assert(parseInfixExpression("a - [ b - c ]".dup).serialize() == "( - , a, ( [ , ( - , b, c)))");
+	assert(parseInfixExpression("{ a + b } + c".dup).serialize() == "( + , ( { , ( + , a, b)), c)");
+	assert(parseInfixExpression("{ a - b } - c".dup).serialize() == "( - , ( { , ( - , a, b)), c)");
+	assert(parseInfixExpression("a + { b + c }".dup).serialize() == "( + , a, ( { , ( + , b, c)))");
+	assert(parseInfixExpression("a - { b - c }".dup).serialize() == "( - , a, ( { , ( - , b, c)))");
+	
+	assert(parseInfixExpression("2 + ( a , ( b , c ) )".dup).serialize() == "( + , 2, ( ( , a, ( ( , b, c)))");
 }
 
 
