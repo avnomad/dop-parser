@@ -143,7 +143,7 @@ Expression parseInfixExpression(char[] input)
 	auto infixOperators = ["+":Op(5,Assoc.left),"-":Op(5,Assoc.left),"*":Op(6,Assoc.left),"/":Op(6,Assoc.left),
 		"=":Op(4,Assoc.right),"+=":Op(4,Assoc.right),",,":Op(3,Assoc.left),"..":Op(7,Assoc.right),null:Op(6,Assoc.left)];
 	auto prefixOperators = ["+":1,"-":1,"*":1,"++":1,"--":1,"!":1,"~":1];
-	auto postfixOperators = ["++":1,"--":1];
+	auto postfixOperators = ["++":1,"--":1,"**":1];
 	string bnc = to!string(""w ~ cast(wchar)65535);	// workaround to legitimately use noncharacters...
 	string enc = to!string(""w ~ cast(wchar)65534);
 	auto paren = Tup("(",",",")"), bracket = Tup("[",",","]"), brace = Tup("{",".","}"), eoe = Tup(bnc,"",enc);
@@ -365,6 +365,11 @@ Expression parseInfixExpression(char[] input)
 
 unittest
 {
+	bool check(string input, string output)
+	{
+		return parseInfixExpression(input.dup).serialize() == output;
+	} // end function check
+
 	// basic infix operations
 	assert(parseInfixExpression("2".dup).serialize() == "2");
 	assert(parseInfixExpression("2 + 3".dup).serialize() == "( + , 2, 3)");
@@ -472,18 +477,51 @@ unittest
 	assert(parseInfixExpression("- + a".dup).serialize() == "( pre - , ( pre + , a))");
 	assert(parseInfixExpression("+ - a".dup).serialize() == "( pre + , ( pre - , a))");
 	// prefix + tuples
-	assert(parseInfixExpression("++ ( a )".dup).serialize() == "( pre ++ , ( ( , a))");
-	assert(parseInfixExpression("-- ( a )".dup).serialize() == "( pre -- , ( ( , a))");
-	assert(parseInfixExpression("-- ++ ( a )".dup).serialize() == "( pre -- , ( pre ++ , ( ( , a)))");
-	assert(parseInfixExpression("++ -- ( a )".dup).serialize() == "( pre ++ , ( pre -- , ( ( , a)))");
-	assert(parseInfixExpression("-- ( ++ a )".dup).serialize() == "( pre -- , ( ( , ( pre ++ , a)))");
-	assert(parseInfixExpression("++ ( -- a )".dup).serialize() == "( pre ++ , ( ( , ( pre -- , a)))");
-	assert(parseInfixExpression("+ ( a )".dup).serialize() == "( pre + , ( ( , a))");
-	assert(parseInfixExpression("- ( a )".dup).serialize() == "( pre - , ( ( , a))");
-	assert(parseInfixExpression("- + ( a )".dup).serialize() == "( pre - , ( pre + , ( ( , a)))");
-	assert(parseInfixExpression("+ - ( a )".dup).serialize() == "( pre + , ( pre - , ( ( , a)))");
-	assert(parseInfixExpression("- ( + a )".dup).serialize() == "( pre - , ( ( , ( pre + , a)))");
-	assert(parseInfixExpression("+ ( - a )".dup).serialize() == "( pre + , ( ( , ( pre - , a)))");
+	assert(check("++ ( a )","( pre ++ , ( ( , a))"));
+	assert(check("-- ( a )","( pre -- , ( ( , a))"));
+	assert(check("-- ++ ( a )","( pre -- , ( pre ++ , ( ( , a)))"));
+	assert(check("++ -- ( a )","( pre ++ , ( pre -- , ( ( , a)))"));
+	assert(check("-- ( ++ a )","( pre -- , ( ( , ( pre ++ , a)))"));
+	assert(check("++ ( -- a )","( pre ++ , ( ( , ( pre -- , a)))"));
+	assert(check("+ ( a )","( pre + , ( ( , a))"));
+	assert(check("- ( a )","( pre - , ( ( , a))"));
+	assert(check("- + ( a )","( pre - , ( pre + , ( ( , a)))"));
+	assert(check("+ - ( a )","( pre + , ( pre - , ( ( , a)))"));
+	assert(check("- ( + a )","( pre - , ( ( , ( pre + , a)))"));
+	assert(check("+ ( - a )","( pre + , ( ( , ( pre - , a)))"));
+	// prefix + postfix
+	assert(parseInfixExpression("-- a ++".dup).serialize() == "( post ++ , ( pre -- , a))");
+	assert(parseInfixExpression("++ a --".dup).serialize() == "( post -- , ( pre ++ , a))");
+	assert(parseInfixExpression("-- a ++ --".dup).serialize() == "( post -- , ( post ++ , ( pre -- , a)))");
+	assert(parseInfixExpression("++ a -- ++".dup).serialize() == "( post ++ , ( post -- , ( pre ++ , a)))");
+	assert(parseInfixExpression("- a ++".dup).serialize() == "( post ++ , ( pre - , a))");
+	assert(parseInfixExpression("+ a --".dup).serialize() == "( post -- , ( pre + , a))");
+	assert(parseInfixExpression("- a ++ --".dup).serialize() == "( post -- , ( post ++ , ( pre - , a)))");
+	assert(parseInfixExpression("+ a -- ++".dup).serialize() == "( post ++ , ( post -- , ( pre + , a)))");
+	assert(parseInfixExpression("++ - a ++".dup).serialize() == "( post ++ , ( pre ++ , ( pre - , a)))");
+	assert(parseInfixExpression("++ + a --".dup).serialize() == "( post -- , ( pre ++ , ( pre + , a)))");
+	assert(parseInfixExpression("++ - a ++ --".dup).serialize() == "( post -- , ( post ++ , ( pre ++ , ( pre - , a))))");
+	assert(parseInfixExpression("++ + a -- ++".dup).serialize() == "( post ++ , ( post -- , ( pre ++ , ( pre + , a))))");
+	// prefix + postfix + grouping
+	assert(parseInfixExpression("( -- a ) ++".dup).serialize() == "( post ++ , ( ( , ( pre -- , a)))");
+	assert(parseInfixExpression("++ ( a -- )".dup).serialize() == "( pre ++ , ( ( , ( post -- , a)))");
+	assert(parseInfixExpression("-- ( a ++ ) --".dup).serialize() == "( post -- , ( pre -- , ( ( , ( post ++ , a))))");
+	assert(parseInfixExpression("++ ( a -- ++ )".dup).serialize() == "( pre ++ , ( ( , ( post ++ , ( post -- , a))))");
+	// prefix + postfix + tuples
+	assert(parseInfixExpression("-- ( a ++ , b ) --".dup).serialize() == "( post -- , ( pre -- , ( ( , ( post ++ , a), b)))");
+	assert(parseInfixExpression("++ ( a -- , b ++ )".dup).serialize() == "( pre ++ , ( ( , ( post -- , a), ( post ++ , b)))");
+	// infix + prefix + postfix
+	assert(parseInfixExpression("a + + b".dup).serialize() == "( + , a, ( pre + , b))");
+	assert(parseInfixExpression("a - + b".dup).serialize() == "( - , a, ( pre + , b))");
+	assert(parseInfixExpression("a + - b".dup).serialize() == "( + , a, ( pre - , b))");
+	assert(parseInfixExpression("a ++ + + b".dup).serialize() == "( + , ( post ++ , a), ( pre + , b))");
+	assert(parseInfixExpression("a ++ - + b".dup).serialize() == "( - , ( post ++ , a), ( pre + , b))");
+	assert(parseInfixExpression("a ++ + - b".dup).serialize() == "( + , ( post ++ , a), ( pre - , b))");
+	
+	// juxtaposition + prefix + postfix
+	assert(parseInfixExpression("a ** ! b".dup).serialize() == "(  , ( post ** , a), ( pre ! , b))");
+	assert(parseInfixExpression("a ** ! + b".dup).serialize() == "(  , ( post ** , a), ( pre ! , ( pre + , b)))");
+	assert(parseInfixExpression("a ++ ** ! + b".dup).serialize() == "(  , ( post ** , ( post ++ , a)), ( pre ! , ( pre + , b)))");
 } // end unittest
 
 
