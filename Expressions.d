@@ -54,6 +54,7 @@ unittest
 		new ExpressionAstNode("*",[new LiteralOperand("5"),new LiteralOperand("a")]),
 		new ExpressionAstNode("-",[new LiteralOperand("b"),new LiteralOperand("2.2")])])).serialize() ==
 		"( + , ( * , 5, a), ( - , b, 2.2))");
+	assert((new ExpressionAstNode(null,[new LiteralOperand("5"),new LiteralOperand("a")])).serialize() == "(  , 5, a)");
 }
 
 Expression parsePostfixExpression(char[] input)
@@ -139,8 +140,10 @@ Expression parseInfixExpression(char[] input)
 {
 	/* Note: right now, the operator, initiator, seperator and terminator sets must be disjoint!! */
 	/* 		 also, only one associativity is expected per precedence level. */
-	auto operators = ["+":Op(5,Assoc.left),"-":Op(5,Assoc.left),"*":Op(6,Assoc.left),"/":Op(6,Assoc.left),
-		"=":Op(4,Assoc.right),"+=":Op(4,Assoc.right),",,":Op(3,Assoc.left),"..":Op(7,Assoc.right)];
+	auto infixOperators = ["+":Op(5,Assoc.left),"-":Op(5,Assoc.left),"*":Op(6,Assoc.left),"/":Op(6,Assoc.left),
+		"=":Op(4,Assoc.right),"+=":Op(4,Assoc.right),",,":Op(3,Assoc.left),"..":Op(7,Assoc.right),null:Op(6,Assoc.left)];
+	auto prefixOperators = ["+":1,"-":1,"*":1,"++":1,"--":1,"!":1,"~":1];
+	auto postfixOperators = ["++":1,"--":1];
 	string bnc = to!string(""w ~ cast(wchar)65535);	// workaround to legitimately use noncharacters...
 	string enc = to!string(""w ~ cast(wchar)65534);
 	auto paren = Tup("(",",",")"), bracket = Tup("[",",","]"), brace = Tup("{",".","}"), eoe = Tup(bnc,"",enc);
@@ -151,7 +154,7 @@ Expression parseInfixExpression(char[] input)
 
 	void dispatchToken(char[] token)
 	{
-		if(token in operators) 			// operator
+		if(token in infixOperators) 			// operator
 		{
 			enforce(cast(Expression)symbols[$-1]);
 			while(true)
@@ -159,11 +162,11 @@ Expression parseInfixExpression(char[] input)
 				if(cast(Operator)symbols[$-2])	// operator
 				{
 					auto previous = cast(Operator)symbols[$-2];
-					if(operators[previous.name].priority == operators[token].priority)
-						enforce(operators[previous.name].associativity == operators[token].associativity);
-					if(operators[previous.name].priority < operators[token].priority ||
-						(operators[previous.name].priority == operators[token].priority && 
-						 operators[token].associativity == Assoc.right))
+					if(infixOperators[previous.name].priority == infixOperators[token].priority)
+						enforce(infixOperators[previous.name].associativity == infixOperators[token].associativity);
+					if(infixOperators[previous.name].priority < infixOperators[token].priority ||
+						(infixOperators[previous.name].priority == infixOperators[token].priority && 
+						 infixOperators[token].associativity == Assoc.right))
 					{	// shift
 						symbols ~= new Operator(token.idup);
 						break;
@@ -184,7 +187,12 @@ Expression parseInfixExpression(char[] input)
 		}
 		else if(token in initiators)	// initiator
 		{
-			enforce(!cast(Expression)symbols[$-1]); // concatenation nor function calls allowed yet!
+			enforce(token !in prefixOperators && token !in postfixOperators);	// those cases should be handled outside
+			if(cast(Expression)symbols[$-1])
+			{
+				enforce(null in infixOperators);	// function calls not supported yet!
+				dispatchToken(null);	// handle as infix operator
+			}
 			// shift
 			symbols ~= new Initiator(token.idup);
 			enforce(initiators[token].initiator == token);
@@ -228,7 +236,12 @@ Expression parseInfixExpression(char[] input)
 		}
 		else							// operand
 		{
-			enforce(!cast(Expression)symbols[$-1]); // concatenation not allowed yet!
+			enforce(token !in prefixOperators && token !in postfixOperators);	// those cases should be handled outside
+			if(cast(Expression)symbols[$-1])
+			{
+				enforce(null in infixOperators);
+				dispatchToken(null);	// handle as infix operator
+			}
 			// shift
 			symbols ~= new LiteralOperand(token.idup);
 		} // end else
@@ -321,6 +334,20 @@ unittest
 	assert(parseInfixExpression("a - { b - c }".dup).serialize() == "( - , a, ( { , ( - , b, c)))");
 	
 	assert(parseInfixExpression("2 + ( a , ( b , c ) )".dup).serialize() == "( + , 2, ( ( , a, ( ( , b, c)))");
+	
+	assert(parseInfixExpression("a b".dup).serialize() == "(  , a, b)");
+	assert(parseInfixExpression("a b c".dup).serialize() == "(  , (  , a, b), c)");
+	assert(parseInfixExpression("a b * c".dup).serialize() == "( * , (  , a, b), c)");
+	assert(parseInfixExpression("a * b c".dup).serialize() == "(  , ( * , a, b), c)");
+	assert(parseInfixExpression("a + b c".dup).serialize() == "( + , a, (  , b, c))");
+	assert(parseInfixExpression("a b + c".dup).serialize() == "( + , (  , a, b), c)");
+	
+	assert(parseInfixExpression("a ( b )".dup).serialize() == "(  , a, ( ( , b))");
+	assert(parseInfixExpression("( a ) b".dup).serialize() == "(  , ( ( , a), b)");
+	assert(parseInfixExpression("a ( b c )".dup).serialize() == "(  , a, ( ( , (  , b, c)))");
+	assert(parseInfixExpression("( a b ) c".dup).serialize() == "(  , ( ( , (  , a, b)), c)");
+	assert(parseInfixExpression("a ( b , c )".dup).serialize() == "(  , a, ( ( , b, c))");
+	assert(parseInfixExpression("( a , b ) c".dup).serialize() == "(  , ( ( , a, b), c)");
 }
 
 
