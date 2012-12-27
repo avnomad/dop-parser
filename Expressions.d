@@ -151,7 +151,9 @@ Expression parseInfixExpression(char[] input)
 	auto seperators = [",":paren,",":bracket,".":brace];
 	auto terminators = [")":paren,"]":bracket,"}":brace,enc:eoe];
 	Symbol[] symbols;
-
+	Operator[] stagedOperators;
+	
+	// below some enforce calls may need to change to assert...
 	void dispatchToken(char[] token)
 	{
 		if(token in infixOperators) 			// operator
@@ -187,14 +189,18 @@ Expression parseInfixExpression(char[] input)
 		}
 		else if(token in initiators)	// initiator
 		{
-			enforce(token !in prefixOperators && token !in postfixOperators);	// those cases should be handled outside
+			assert(token !in prefixOperators && token !in postfixOperators);	// those cases should be handled outside
 			if(cast(Expression)symbols[$-1])
 			{
 				enforce(null in infixOperators);	// function calls not supported yet!
 				dispatchToken(null);	// handle as infix operator
 			}
+			// handle possible leading prefix operators
+			foreach(operator; stagedOperators)
+				enforce(operator.name in prefixOperators);
 			// shift
-			symbols ~= new Initiator(token.idup);
+			symbols ~= new Initiator(token.idup,stagedOperators);
+			stagedOperators = [];
 			enforce(initiators[token].initiator == token);
 		}
 		else if(token in seperators)	// seperator
@@ -231,8 +237,17 @@ Expression parseInfixExpression(char[] input)
 					symbols = symbols[0..$-1];
 				} // end else
 			} // end while
+			// reduce possible leading prefix operators
+			Operator[] leadingPrefixes = topAsInit.leadingPrefixes;
+			Expression temp = new ExpressionAstNode(topAsInit.name,operands);
+			while(!leadingPrefixes.empty)
+			{
+				enforce(leadingPrefixes[$-1].name in prefixOperators);
+				temp = new ExpressionAstNode("pre " ~ leadingPrefixes[$-1].name,[temp]);
+				leadingPrefixes = leadingPrefixes[0..$-1];
+			} // end while
 			// reduce
-			symbols[$-1] = new ExpressionAstNode(topAsInit.name,operands);
+			symbols[$-1] = temp;
 		}
 		else							// operand
 		{
@@ -242,16 +257,92 @@ Expression parseInfixExpression(char[] input)
 				enforce(null in infixOperators);
 				dispatchToken(null);	// handle as infix operator
 			}
+			// reduce possible leading prefix operators
+			Expression temp = new LiteralOperand(token.idup);
+			while(!stagedOperators.empty)
+			{
+				enforce(stagedOperators[$-1].name in prefixOperators);
+				temp = new ExpressionAstNode("pre " ~ stagedOperators[$-1].name,[temp]);
+				stagedOperators = stagedOperators[0..$-1];
+			} // end while
 			// shift
-			symbols ~= new LiteralOperand(token.idup);
+			symbols ~= temp;
 		} // end else
 	} // end function dispatchToken
 
-
-	symbols ~= new Initiator(bnc);	// used as a sentinel to avoid checking for empty stack
+	
+	symbols ~= new Initiator(bnc,null);	// used as a sentinel to avoid checking for empty stack
 	foreach(token; std.array.splitter(input))
 	{
-		dispatchToken(token);
+		if(token in infixOperators || token in prefixOperators || token in postfixOperators)
+		{
+			stagedOperators ~= new Operator(token.idup);
+		}
+		else
+		{
+			if(cast(Initiator)symbols[$-1] || cast(Seperator)symbols[$-1])
+			{
+				enforce(token !in seperators && token !in terminators);
+			}
+			else if(token in seperators || token in terminators)
+			{
+				foreach(operator; stagedOperators)
+				{
+					assert(cast(Expression)symbols[$-1]);
+					enforce(operator.name in postfixOperators);
+					symbols[$-1] = new ExpressionAstNode("post " ~ operator.name,[cast(Expression)symbols[$-1]]);
+				} // end foreach
+			}
+			else
+			{
+				assert(cast(Expression)symbols[$-1]);	// token should be initiator or operand
+				int firstNonPost = 0;	// from the left
+				while(firstNonPost < stagedOperators.length && stagedOperators[firstNonPost].name in postfixOperators)
+					firstNonPost++;
+				int lastNonPre = stagedOperators.length-1;	// from the left
+				while(lastNonPre > -1 && stagedOperators[lastNonPre].name in prefixOperators)
+					lastNonPre--;
+				int count = 0;
+				int index = -1;
+				for(auto i = max(0,lastNonPre) ; i <= min(stagedOperators.length-1,firstNonPost) ; i++)
+				{
+					if(stagedOperators[i].name in infixOperators)
+					{
+						count++;
+						index = i;
+					} // end if
+				} // end for
+				enforce(count <= 1);	// or else ambiguity
+				if(count == 1)
+				{
+					// reduce postfix operators
+					foreach(i; 0..index)
+					{
+						assert(cast(Expression)symbols[$-1]);
+						assert(stagedOperators[i].name in postfixOperators);
+						symbols[$-1] = new ExpressionAstNode("post " ~ stagedOperators[i].name,[cast(Expression)symbols[$-1]]);
+					} // end foreach
+					assert(stagedOperators[index].name in infixOperators);
+					dispatchToken(stagedOperators[index].name.dup);
+					stagedOperators = stagedOperators[index+1..$];
+				}
+				else if(count == 0)
+				{
+					enforce(firstNonPost-lastNonPre == 1);
+					// reduce postfix operators
+					foreach(i; 0..firstNonPost)
+					{
+						assert(cast(Expression)symbols[$-1]);
+						assert(stagedOperators[i].name in postfixOperators);
+						symbols[$-1] = new ExpressionAstNode("post " ~ stagedOperators[i].name,[cast(Expression)symbols[$-1]]);
+					} // end foreach
+					enforce(null in infixOperators);
+					dispatchToken(null);
+					stagedOperators = stagedOperators[firstNonPost..$];
+				} // end if
+			} // end else
+			dispatchToken(token);
+		} // end else
 	} // end foreach
 	dispatchToken(enc.dup);	// should match starting sentinel token
 	
@@ -378,7 +469,14 @@ unittest
 
 class Initiator : Symbol
 {
-	mixin Named;
+	string name;
+	Operator[] leadingPrefixes;
+	
+	this(string name, Operator[] leadingPrefixes)
+	{
+		this.name = name;
+		this.leadingPrefixes = leadingPrefixes;
+	}
 }
 
 class Seperator : Symbol
