@@ -269,10 +269,9 @@ Expression parseInfixExpression(char[] input)
 			symbols ~= temp;
 		} // end else
 	} // end function dispatchToken
-
 	
-	symbols ~= new Initiator(bnc,null);	// used as a sentinel to avoid checking for empty stack
-	foreach(token; std.array.splitter(input))
+
+	void processToken(char[] token)
 	{
 		if(token in infixOperators || token in prefixOperators || token in postfixOperators)
 		{
@@ -280,71 +279,82 @@ Expression parseInfixExpression(char[] input)
 		}
 		else
 		{
-			if(cast(Initiator)symbols[$-1] || cast(Seperator)symbols[$-1])
+			if(!stagedOperators.empty)
 			{
-				enforce(token !in seperators && token !in terminators);
-			}
-			else if(token in seperators || token in terminators)
-			{
-				foreach(operator; stagedOperators)
+				if(cast(Initiator)symbols[$-1] || cast(Seperator)symbols[$-1])
 				{
-					assert(cast(Expression)symbols[$-1]);
-					enforce(operator.name in postfixOperators);
-					symbols[$-1] = new ExpressionAstNode("post " ~ operator.name,[cast(Expression)symbols[$-1]]);
-				} // end foreach
-			}
-			else
-			{
-				assert(cast(Expression)symbols[$-1]);	// token should be initiator or operand
-				int firstNonPost = 0;	// from the left
-				while(firstNonPost < stagedOperators.length && stagedOperators[firstNonPost].name in postfixOperators)
-					firstNonPost++;
-				int lastNonPre = stagedOperators.length-1;	// from the left
-				while(lastNonPre > -1 && stagedOperators[lastNonPre].name in prefixOperators)
-					lastNonPre--;
-				int count = 0;
-				int index = -1;
-				for(auto i = max(0,lastNonPre) ; i <= min(stagedOperators.length-1,firstNonPost) ; i++)
-				{
-					if(stagedOperators[i].name in infixOperators)
-					{
-						count++;
-						index = i;
-					} // end if
-				} // end for
-				enforce(count <= 1);	// or else ambiguity
-				if(count == 1)
-				{
-					// reduce postfix operators
-					foreach(i; 0..index)
-					{
-						assert(cast(Expression)symbols[$-1]);
-						assert(stagedOperators[i].name in postfixOperators);
-						symbols[$-1] = new ExpressionAstNode("post " ~ stagedOperators[i].name,[cast(Expression)symbols[$-1]]);
-					} // end foreach
-					assert(stagedOperators[index].name in infixOperators);
-					dispatchToken(stagedOperators[index].name.dup);
-					stagedOperators = stagedOperators[index+1..$];
+					enforce(token !in seperators && token !in terminators);
 				}
-				else if(count == 0)
+				else if(token in seperators || token in terminators)
 				{
-					enforce(firstNonPost-lastNonPre == 1);
-					// reduce postfix operators
-					foreach(i; 0..firstNonPost)
+					foreach(operator; stagedOperators)
 					{
 						assert(cast(Expression)symbols[$-1]);
-						assert(stagedOperators[i].name in postfixOperators);
-						symbols[$-1] = new ExpressionAstNode("post " ~ stagedOperators[i].name,[cast(Expression)symbols[$-1]]);
+						enforce(operator.name in postfixOperators);
+						symbols[$-1] = new ExpressionAstNode("post " ~ operator.name,[cast(Expression)symbols[$-1]]);
 					} // end foreach
-					enforce(null in infixOperators);
-					dispatchToken(null);
-					stagedOperators = stagedOperators[firstNonPost..$];
-				} // end if
-			} // end else
+					stagedOperators = [];
+				}
+				else
+				{
+					assert(cast(Expression)symbols[$-1]);	// token should be initiator or operand
+					int firstNonPost = 0;	// from the left
+					while(firstNonPost < stagedOperators.length && stagedOperators[firstNonPost].name in postfixOperators)
+						firstNonPost++;
+					int lastNonPre = stagedOperators.length-1;	// from the left
+					while(lastNonPre > -1 && stagedOperators[lastNonPre].name in prefixOperators)
+						lastNonPre--;
+					int count = 0;
+					int index = -1;
+					for(auto i = max(0,lastNonPre) ; i <= min(stagedOperators.length-1,firstNonPost) ; i++)
+					{
+						if(stagedOperators[i].name in infixOperators)
+						{
+							count++;
+							index = i;
+						} // end if
+					} // end for
+					enforce(count <= 1);	// or else ambiguity
+					if(count == 1)
+					{
+						// reduce postfix operators
+						foreach(i; 0..index)
+						{
+							assert(cast(Expression)symbols[$-1]);
+							assert(stagedOperators[i].name in postfixOperators);
+							symbols[$-1] = new ExpressionAstNode("post " ~ stagedOperators[i].name,[cast(Expression)symbols[$-1]]);
+						} // end foreach
+						assert(stagedOperators[index].name in infixOperators);
+						dispatchToken(stagedOperators[index].name.dup);
+						stagedOperators = stagedOperators[index+1..$];
+					}
+					else if(count == 0)
+					{
+						enforce(firstNonPost-lastNonPre == 1);
+						// reduce postfix operators
+						foreach(i; 0..firstNonPost)
+						{
+							assert(cast(Expression)symbols[$-1]);
+							assert(stagedOperators[i].name in postfixOperators);
+							symbols[$-1] = new ExpressionAstNode("post " ~ stagedOperators[i].name,[cast(Expression)symbols[$-1]]);
+						} // end foreach
+						enforce(null in infixOperators);
+						dispatchToken(null);
+						stagedOperators = stagedOperators[firstNonPost..$];
+					} // end if
+				} // end else
+			} // end if
 			dispatchToken(token);
 		} // end else
+	} // end function processToken
+	
+	
+	symbols ~= new Initiator(bnc,null);	// used as a sentinel to avoid checking for empty stack
+	foreach(token; std.array.splitter(input))
+	{
+		processToken(token);
 	} // end foreach
-	dispatchToken(enc.dup);	// should match starting sentinel token
+	processToken(enc.dup);	// should match starting sentinel token
 	
 	
 	if(symbols.length == 1)
@@ -355,6 +365,7 @@ Expression parseInfixExpression(char[] input)
 
 unittest
 {
+	// basic infix operations
 	assert(parseInfixExpression("2".dup).serialize() == "2");
 	assert(parseInfixExpression("2 + 3".dup).serialize() == "( + , 2, 3)");
 	assert(parseInfixExpression("a - b".dup).serialize() == "( - , a, b)");
@@ -379,7 +390,7 @@ unittest
 	assert(parseInfixExpression("2 += 3 .. 4".dup).serialize() == "( += , 2, ( .. , 3, 4))");
 	assert(parseInfixExpression("2 .. 3 += 4".dup).serialize() == "( += , ( .. , 2, 3), 4)");
 	assert(parseInfixExpression("a += b = 3 * b + 2".dup).serialize() == "( += , a, ( = , b, ( + , ( * , 3, b), 2)))");
-	
+	// tuples
 	assert(parseInfixExpression("( )".dup).serialize() == "( ( )");
 	assert(parseInfixExpression("[ ]".dup).serialize() == "( [ )");
 	assert(parseInfixExpression("{ }".dup).serialize() == "( { )");
@@ -410,7 +421,7 @@ unittest
 	assert(parseInfixExpression("( a + b , c .. d , e * f )".dup).serialize() == "( ( , ( + , a, b), ( .. , c, d), ( * , e, f))");
 	assert(parseInfixExpression("[ a + b , c .. d , e * f ]".dup).serialize() == "( [ , ( + , a, b), ( .. , c, d), ( * , e, f))");
 	assert(parseInfixExpression("{ a + b . c .. d . e * f }".dup).serialize() == "( { , ( + , a, b), ( .. , c, d), ( * , e, f))");
-
+	// grouping
 	assert(parseInfixExpression("( a + b ) + c".dup).serialize() == "( + , ( ( , ( + , a, b)), c)");
 	assert(parseInfixExpression("( a - b ) - c".dup).serialize() == "( - , ( ( , ( - , a, b)), c)");
 	assert(parseInfixExpression("a + ( b + c )".dup).serialize() == "( + , a, ( ( , ( + , b, c)))");
@@ -423,24 +434,57 @@ unittest
 	assert(parseInfixExpression("{ a - b } - c".dup).serialize() == "( - , ( { , ( - , a, b)), c)");
 	assert(parseInfixExpression("a + { b + c }".dup).serialize() == "( + , a, ( { , ( + , b, c)))");
 	assert(parseInfixExpression("a - { b - c }".dup).serialize() == "( - , a, ( { , ( - , b, c)))");
-	
+	// nested tuples
 	assert(parseInfixExpression("2 + ( a , ( b , c ) )".dup).serialize() == "( + , 2, ( ( , a, ( ( , b, c)))");
-	
+	// basic juxtaposition
 	assert(parseInfixExpression("a b".dup).serialize() == "(  , a, b)");
 	assert(parseInfixExpression("a b c".dup).serialize() == "(  , (  , a, b), c)");
 	assert(parseInfixExpression("a b * c".dup).serialize() == "( * , (  , a, b), c)");
 	assert(parseInfixExpression("a * b c".dup).serialize() == "(  , ( * , a, b), c)");
 	assert(parseInfixExpression("a + b c".dup).serialize() == "( + , a, (  , b, c))");
 	assert(parseInfixExpression("a b + c".dup).serialize() == "( + , (  , a, b), c)");
-	
+	// juxtaposition + tuples
 	assert(parseInfixExpression("a ( b )".dup).serialize() == "(  , a, ( ( , b))");
 	assert(parseInfixExpression("( a ) b".dup).serialize() == "(  , ( ( , a), b)");
 	assert(parseInfixExpression("a ( b c )".dup).serialize() == "(  , a, ( ( , (  , b, c)))");
 	assert(parseInfixExpression("( a b ) c".dup).serialize() == "(  , ( ( , (  , a, b)), c)");
 	assert(parseInfixExpression("a ( b , c )".dup).serialize() == "(  , a, ( ( , b, c))");
 	assert(parseInfixExpression("( a , b ) c".dup).serialize() == "(  , ( ( , a, b), c)");
-}
-
+	// basic postfix operations
+	assert(parseInfixExpression("a ++".dup).serialize() == "( post ++ , a)");
+	assert(parseInfixExpression("a --".dup).serialize() == "( post -- , a)");
+	assert(parseInfixExpression("a ++ --".dup).serialize() == "( post -- , ( post ++ , a))");
+	assert(parseInfixExpression("a -- ++".dup).serialize() == "( post ++ , ( post -- , a))");
+	// postfix + tuples
+	assert(parseInfixExpression("( a ) ++".dup).serialize() == "( post ++ , ( ( , a))");
+	assert(parseInfixExpression("( a ) --".dup).serialize() == "( post -- , ( ( , a))");
+	assert(parseInfixExpression("( a ) ++ --".dup).serialize() == "( post -- , ( post ++ , ( ( , a)))");
+	assert(parseInfixExpression("( a ) -- ++".dup).serialize() == "( post ++ , ( post -- , ( ( , a)))");
+	assert(parseInfixExpression("( a ++ ) --".dup).serialize() == "( post -- , ( ( , ( post ++ , a)))");
+	assert(parseInfixExpression("( a -- ) ++".dup).serialize() == "( post ++ , ( ( , ( post -- , a)))");
+	// basic prefix operations
+	assert(parseInfixExpression("++ a".dup).serialize() == "( pre ++ , a)");
+	assert(parseInfixExpression("-- a".dup).serialize() == "( pre -- , a)");
+	assert(parseInfixExpression("-- ++ a".dup).serialize() == "( pre -- , ( pre ++ , a))");
+	assert(parseInfixExpression("++ -- a".dup).serialize() == "( pre ++ , ( pre -- , a))");
+	assert(parseInfixExpression("+ a".dup).serialize() == "( pre + , a)");
+	assert(parseInfixExpression("- a".dup).serialize() == "( pre - , a)");
+	assert(parseInfixExpression("- + a".dup).serialize() == "( pre - , ( pre + , a))");
+	assert(parseInfixExpression("+ - a".dup).serialize() == "( pre + , ( pre - , a))");
+	// prefix + tuples
+	assert(parseInfixExpression("++ ( a )".dup).serialize() == "( pre ++ , ( ( , a))");
+	assert(parseInfixExpression("-- ( a )".dup).serialize() == "( pre -- , ( ( , a))");
+	assert(parseInfixExpression("-- ++ ( a )".dup).serialize() == "( pre -- , ( pre ++ , ( ( , a)))");
+	assert(parseInfixExpression("++ -- ( a )".dup).serialize() == "( pre ++ , ( pre -- , ( ( , a)))");
+	assert(parseInfixExpression("-- ( ++ a )".dup).serialize() == "( pre -- , ( ( , ( pre ++ , a)))");
+	assert(parseInfixExpression("++ ( -- a )".dup).serialize() == "( pre ++ , ( ( , ( pre -- , a)))");
+	assert(parseInfixExpression("+ ( a )".dup).serialize() == "( pre + , ( ( , a))");
+	assert(parseInfixExpression("- ( a )".dup).serialize() == "( pre - , ( ( , a))");
+	assert(parseInfixExpression("- + ( a )".dup).serialize() == "( pre - , ( pre + , ( ( , a)))");
+	assert(parseInfixExpression("+ - ( a )".dup).serialize() == "( pre + , ( pre - , ( ( , a)))");
+	assert(parseInfixExpression("- ( + a )".dup).serialize() == "( pre - , ( ( , ( pre + , a)))");
+	assert(parseInfixExpression("+ ( - a )".dup).serialize() == "( pre + , ( ( , ( pre - , a)))");
+} // end unittest
 
 
 interface Symbol{}
