@@ -11,8 +11,8 @@ void main()
 	foreach(line; stdin.byLine())
 	{
 		// print output line
-		auto ast = parsePostfixExpression(line);
-		writeln(">> ",ast?ast.serialize():"error: stack not exhausted!");
+		auto ast = parseInfixExpression(line);
+		writeln(">> ",ast?ast.serialize():"error: stack not exhausted... or something else!");
 		// prepare for new input
 		write("<< ");
 	} // end foreach
