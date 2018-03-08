@@ -524,6 +524,17 @@ unittest
 	assert(parseInfixExpression("a ++ ** ! + b".dup).serialize() == "(  , ( post ** , ( post ++ , a)), ( pre ! , ( pre + , b)))");
 } // end unittest
 
+/*
+	u_quark example for precedence in all operator classes
+	
+	++ infix L
+	++ pre
+	% infix
+	* infix L
+	* post
+	p * ++ q % r
+
+*/
 
 interface Symbol{}
 interface Operand : Symbol{}
