@@ -525,7 +525,8 @@ unittest
 } // end unittest
 
 /*
-	u_quark example for precedence in all operator classes
+	TODO: add the following test case (suggested by u_quark) to the test suite.
+		This will require refactoring code to take the symbol table as an argument.
 	
 	++ infix L
 	++ pre
