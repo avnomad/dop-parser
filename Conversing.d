@@ -4,10 +4,10 @@ import Expressions;
 
 void main()
 {
-	
+
 	writeln("Type in a line of text and press enter. (Type ctrl+z and enter to exit)");
 	write("<< ");
-	
+
 	foreach(line; stdin.byLine())
 	{
 		// print output line

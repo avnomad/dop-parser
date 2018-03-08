@@ -10,13 +10,13 @@ class ExpressionAstNode : Expression
 {
 	private string operator;
 	private Expression[] iOperands;
-	
+
 	this(string operator, Expression[] operands)
 	{
 		this.operator = operator;
 		this.iOperands = operands;
 	}
-	
+
 	override string serialize()
 	{
 		string s = "( " ~ operator ~ " ";
@@ -26,7 +26,7 @@ class ExpressionAstNode : Expression
 		}
 		return s ~ ")";
 	}
-	
+
 	@property inout(Expression)[] operands() inout
 	{
 		return iOperands;
@@ -36,18 +36,18 @@ class ExpressionAstNode : Expression
 class LiteralOperand : Expression
 {
 	private string lexeme;
-	
+
 	this(string lexeme)
 	{
 		this.lexeme = lexeme;
 	}
-	
-	override string serialize()	
+
+	override string serialize()
 	{
 		return lexeme;
 	}
 }
-	
+
 unittest
 {
 	assert((new ExpressionAstNode("+",[
@@ -99,9 +99,9 @@ unittest
 	assert(parsePostfixExpression("a b + c -".dup).serialize() == "( - , ( + , a, b), c)");
 	assert(parsePostfixExpression("c a b + -".dup).serialize() == "( - , c, ( + , a, b))");
 
-	assert(parsePostfixExpression("2 3 - 3.1 + 2 5 ? 1 ! 2 $ % /".dup).serialize() == 
+	assert(parsePostfixExpression("2 3 - 3.1 + 2 5 ? 1 ! 2 $ % /".dup).serialize() ==
 			"( / , ( ? , ( + , ( - , 2, 3), 3.1), 2, 5), ( % , ( ! , 1), ( $ , 2)))");
-	assert(parsePostfixExpression("1 ! 2 3 - $ $ ! *".dup).serialize() == 
+	assert(parsePostfixExpression("1 ! 2 3 - $ $ ! *".dup).serialize() ==
 			"( * , ( ! , 1), ( ! , ( $ , ( $ , ( - , 2, 3)))))");
 }
 
@@ -119,14 +119,14 @@ struct Op
 		this.associativity = associativity;
 	}
 }
-	
+
 
 struct Tup
 {
 	string initiator;
 	string seperator;
 	string terminator;
-	
+
 	this(string initiator, string seperator, string terminator)
 	{
 		this.initiator = initiator;
@@ -152,7 +152,7 @@ Expression parseInfixExpression(char[] input)
 	auto terminators = [")":paren,"]":bracket,"}":brace,enc:eoe];
 	Symbol[] symbols;
 	Operator[] stagedOperators;
-	
+
 	// below some enforce calls may need to change to assert...
 	void dispatchToken(char[] token)
 	{
@@ -167,7 +167,7 @@ Expression parseInfixExpression(char[] input)
 					if(infixOperators[previous.name].priority == infixOperators[token].priority)
 						enforce(infixOperators[previous.name].associativity == infixOperators[token].associativity);
 					if(infixOperators[previous.name].priority < infixOperators[token].priority ||
-						(infixOperators[previous.name].priority == infixOperators[token].priority && 
+						(infixOperators[previous.name].priority == infixOperators[token].priority &&
 						 infixOperators[token].associativity == Assoc.right))
 					{	// shift
 						symbols ~= new Operator(token.idup);
@@ -185,7 +185,7 @@ Expression parseInfixExpression(char[] input)
 					symbols ~= new Operator(token.idup);
 					break;
 				}
-			} // end while true			
+			} // end while true
 		}
 		else if(token in initiators)	// initiator
 		{
@@ -214,7 +214,7 @@ Expression parseInfixExpression(char[] input)
 		{
 			Expression[] operands = [];
 			Initiator topAsInit;
-			
+
 			while(!((topAsInit = cast(Initiator)symbols[$-1]),topAsInit && terminators[token].initiator == topAsInit.name))
 			{
 				enforce(cast(Expression)symbols[$-1]);
@@ -269,7 +269,7 @@ Expression parseInfixExpression(char[] input)
 			symbols ~= temp;
 		} // end else
 	} // end function dispatchToken
-	
+
 
 	void processToken(char[] token)
 	{
@@ -347,16 +347,16 @@ Expression parseInfixExpression(char[] input)
 			dispatchToken(token);
 		} // end else
 	} // end function processToken
-	
-	
+
+
 	symbols ~= new Initiator(bnc,null);	// used as a sentinel to avoid checking for empty stack
 	foreach(token; std.array.splitter(input))
 	{
 		processToken(token);
 	} // end foreach
 	processToken(enc.dup);	// should match starting sentinel token
-	
-	
+
+
 	if(symbols.length == 1)
 		return (cast(ExpressionAstNode)symbols.back()).operands[0];	// remove the node created for sentinel
 	else
@@ -517,7 +517,7 @@ unittest
 	assert(parseInfixExpression("a ++ + + b".dup).serialize() == "( + , ( post ++ , a), ( pre + , b))");
 	assert(parseInfixExpression("a ++ - + b".dup).serialize() == "( - , ( post ++ , a), ( pre + , b))");
 	assert(parseInfixExpression("a ++ + - b".dup).serialize() == "( + , ( post ++ , a), ( pre - , b))");
-	
+
 	// juxtaposition + prefix + postfix
 	assert(parseInfixExpression("a ** ! b".dup).serialize() == "(  , ( post ** , a), ( pre ! , b))");
 	assert(parseInfixExpression("a ** ! + b".dup).serialize() == "(  , ( post ** , a), ( pre ! , ( pre + , b)))");
@@ -527,7 +527,7 @@ unittest
 /*
 	TODO: add the following test case (suggested by u_quark) to the test suite.
 		This will require refactoring code to take the symbol table as an argument.
-	
+
 	++ infix L
 	++ pre
 	% infix
@@ -541,9 +541,9 @@ interface Symbol{}
 interface Operand : Symbol{}
 
 mixin template Named()
-{	
+{
 	string name;
-	
+
 	this(string name)
 	{
 		this.name = name;
@@ -565,7 +565,7 @@ class Initiator : Symbol
 {
 	string name;
 	Operator[] leadingPrefixes;
-	
+
 	this(string name, Operator[] leadingPrefixes)
 	{
 		this.name = name;
