@@ -1,11 +1,20 @@
+#!/usr/bin/env rdmd
+
 import std.stdio, std.string;
 import Expressions;
 
+version(Windows)
+{
+	auto exitMethod = "ctrl+z and enter";
+}
+else
+{
+	auto exitMethod = "ctrl+d";
+}
 
 void main()
 {
-
-	writeln("Type in a line of text and press enter. (Type ctrl+z and enter to exit)");
+	writeln("Type in a line of text and press enter. (" ~ exitMethod ~ " to exit)");
 	write("<< ");
 
 	foreach(line; stdin.byLine())

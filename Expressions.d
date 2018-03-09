@@ -62,7 +62,7 @@ Expression parsePostfixExpression(char[] input)
 	immutable uint[string] operators = ["+":2,"-":2,"*":2,"/":2,"%":2,"?":3,"!":1,"$":1]; // (operator symbol,#operands) pairs
 	Expression[] stack;
 
-	foreach(token; std.array.splitter(input))
+	foreach(token; std.array.split(input))
 	{
 		if(!(token in operators)) // not an operator
 		{
@@ -215,8 +215,12 @@ Expression parseInfixExpression(char[] input)
 			Expression[] operands = [];
 			Initiator topAsInit;
 
-			while(!((topAsInit = cast(Initiator)symbols[$-1]),topAsInit && terminators[token].initiator == topAsInit.name))
+			while(true)
 			{
+				topAsInit = cast(Initiator)symbols[$-1];
+				if(topAsInit && terminators[token].initiator == topAsInit.name)
+					break;
+				
 				enforce(cast(Expression)symbols[$-1]);
 				if(cast(Operator)symbols[$-2])
 				{	// reduce
@@ -298,14 +302,14 @@ Expression parseInfixExpression(char[] input)
 				else
 				{
 					assert(cast(Expression)symbols[$-1]);	// token should be initiator or operand
-					int firstNonPost = 0;	// from the left
+					long firstNonPost = 0;	// from the left
 					while(firstNonPost < stagedOperators.length && stagedOperators[firstNonPost].name in postfixOperators)
 						firstNonPost++;
-					int lastNonPre = stagedOperators.length-1;	// from the left
+					long lastNonPre = stagedOperators.length-1;	// from the left
 					while(lastNonPre > -1 && stagedOperators[lastNonPre].name in prefixOperators)
 						lastNonPre--;
-					int count = 0;
-					int index = -1;
+					long count = 0;
+					long index = -1;
 					for(auto i = max(0,lastNonPre) ; i <= min(stagedOperators.length-1,firstNonPost) ; i++)
 					{
 						if(stagedOperators[i].name in infixOperators)
@@ -350,7 +354,7 @@ Expression parseInfixExpression(char[] input)
 
 
 	symbols ~= new Initiator(bnc,null);	// used as a sentinel to avoid checking for empty stack
-	foreach(token; std.array.splitter(input))
+	foreach(token; std.array.split(input))
 	{
 		processToken(token);
 	} // end foreach
