@@ -16,113 +16,8 @@
  *	along with DOP Parser.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import std.stdio, std.string, std.algorithm, std.array, std.range, std.exception;
-import std.conv;
-
-interface Expression : Operand
-{
-	string serialize();
-}
-
-class ExpressionAstNode : Expression
-{
-	private string operator;
-	private Expression[] iOperands;
-
-	this(string operator, Expression[] operands)
-	{
-		this.operator = operator;
-		this.iOperands = operands;
-	}
-
-	override string serialize()
-	{
-		string s = "( " ~ operator ~ " ";
-		foreach(op; iOperands)
-		{
-			s ~= ", " ~ op.serialize();
-		}
-		return s ~ ")";
-	}
-
-	@property inout(Expression)[] operands() inout
-	{
-		return iOperands;
-	}
-}
-
-class LiteralOperand : Expression
-{
-	private string lexeme;
-
-	this(string lexeme)
-	{
-		this.lexeme = lexeme;
-	}
-
-	override string serialize()
-	{
-		return lexeme;
-	}
-}
-
-unittest
-{
-	assert((new ExpressionAstNode("+",[
-		new ExpressionAstNode("*",[new LiteralOperand("5"),new LiteralOperand("a")]),
-		new ExpressionAstNode("-",[new LiteralOperand("b"),new LiteralOperand("2.2")])])).serialize() ==
-		"( + , ( * , 5, a), ( - , b, 2.2))");
-	assert((new ExpressionAstNode(null,[new LiteralOperand("5"),new LiteralOperand("a")])).serialize() == "(  , 5, a)");
-}
-
-Expression parsePostfixExpression(char[] input)
-{
-	immutable uint[string] operators = ["+":2,"-":2,"*":2,"/":2,"%":2,"?":3,"!":1,"$":1]; // (operator symbol,#operands) pairs
-	Expression[] stack;
-
-	foreach(token; std.array.split(input))
-	{
-		if(!(token in operators)) // not an operator
-		{
-			stack ~= new LiteralOperand(token.idup);
-		}
-		else // an operator
-		{
-			Expression[] operands = new Expression[operators[token]];
-			foreach(ref op; retro(operands))
-			{
-				op = stack.back();
-				stack.popBack();
-			} // end foreach
-			stack ~= new ExpressionAstNode(token.idup,operands);
-		} // end else
-	} // end foreach
-	if(stack.length == 1)
-		return stack.back();
-	else
-		return null;
-} // end function parsePostfixExpression
-
-unittest
-{
-	assert(parsePostfixExpression("2 3 +".dup).serialize() == "( + , 2, 3)");
-	assert(parsePostfixExpression("2 3 -".dup).serialize() == "( - , 2, 3)");
-	assert(parsePostfixExpression("2 3 *".dup).serialize() == "( * , 2, 3)");
-	assert(parsePostfixExpression("2 3 /".dup).serialize() == "( / , 2, 3)");
-	assert(parsePostfixExpression("2 3 %".dup).serialize() == "( % , 2, 3)");
-	assert(parsePostfixExpression("2 3 4 ?".dup).serialize() == "( ? , 2, 3, 4)");
-	assert(parsePostfixExpression("2 !".dup).serialize() == "( ! , 2)");
-	assert(parsePostfixExpression("2 $".dup).serialize() == "( $ , 2)");
-	assert(parsePostfixExpression("a b +".dup).serialize() == "( + , a, b)");
-	assert(parsePostfixExpression("a b + c -".dup).serialize() == "( - , ( + , a, b), c)");
-	assert(parsePostfixExpression("c a b + -".dup).serialize() == "( - , c, ( + , a, b))");
-
-	assert(parsePostfixExpression("2 3 - 3.1 + 2 5 ? 1 ! 2 $ % /".dup).serialize() ==
-			"( / , ( ? , ( + , ( - , 2, 3), 3.1), 2, 5), ( % , ( ! , 1), ( $ , 2)))");
-	assert(parsePostfixExpression("1 ! 2 3 - $ $ ! *".dup).serialize() ==
-			"( * , ( ! , 1), ( ! , ( $ , ( $ , ( - , 2, 3)))))");
-}
-
+import std.algorithm, std.range, std.exception, std.conv;
+import ast;
 
 enum Assoc {left,right};
 
@@ -138,7 +33,6 @@ struct Op
 	}
 }
 
-
 struct Tup
 {
 	string initiator;
@@ -152,7 +46,6 @@ struct Tup
 		this.terminator = terminator;
 	}
 }
-
 
 Expression parseInfixExpression(char[] input)
 {
@@ -558,9 +451,6 @@ unittest
 	p * ++ q % r
 
 */
-
-interface Symbol{}
-interface Operand : Symbol{}
 
 mixin template Named()
 {
