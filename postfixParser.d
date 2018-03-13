@@ -48,20 +48,24 @@ Expression parsePostfixExpression(char[] input)
 
 unittest
 {
-	assert(parsePostfixExpression("2 3 +".dup).serialize() == "( + , 2, 3)");
-	assert(parsePostfixExpression("2 3 -".dup).serialize() == "( - , 2, 3)");
-	assert(parsePostfixExpression("2 3 *".dup).serialize() == "( * , 2, 3)");
-	assert(parsePostfixExpression("2 3 /".dup).serialize() == "( / , 2, 3)");
-	assert(parsePostfixExpression("2 3 %".dup).serialize() == "( % , 2, 3)");
-	assert(parsePostfixExpression("2 3 4 ?".dup).serialize() == "( ? , 2, 3, 4)");
-	assert(parsePostfixExpression("2 !".dup).serialize() == "( ! , 2)");
-	assert(parsePostfixExpression("2 $".dup).serialize() == "( $ , 2)");
-	assert(parsePostfixExpression("a b +".dup).serialize() == "( + , a, b)");
-	assert(parsePostfixExpression("a b + c -".dup).serialize() == "( - , ( + , a, b), c)");
-	assert(parsePostfixExpression("c a b + -".dup).serialize() == "( - , c, ( + , a, b))");
-
-	assert(parsePostfixExpression("2 3 - 3.1 + 2 5 ? 1 ! 2 $ % /".dup).serialize() ==
-			"( / , ( ? , ( + , ( - , 2, 3), 3.1), 2, 5), ( % , ( ! , 1), ( $ , 2)))");
-	assert(parsePostfixExpression("1 ! 2 3 - $ $ ! *".dup).serialize() ==
-			"( * , ( ! , 1), ( ! , ( $ , ( $ , ( - , 2, 3)))))");
-}
+	auto test_cases = [
+		["2 3 +", "( + , 2, 3)"],
+		["2 3 -", "( - , 2, 3)"],
+		["2 3 *", "( * , 2, 3)"],
+		["2 3 /", "( / , 2, 3)"],
+		["2 3 %", "( % , 2, 3)"],
+		["2 3 4 ?", "( ? , 2, 3, 4)"],
+		["2 !", "( ! , 2)"],
+		["2 $", "( $ , 2)"],
+		["a b +", "( + , a, b)"],
+		["a b + c -", "( - , ( + , a, b), c)"],
+		["c a b + -", "( - , c, ( + , a, b))"],
+		["2 3 - 3.1 + 2 5 ? 1 ! 2 $ % /", "( / , ( ? , ( + , ( - , 2, 3), 3.1), 2, 5), ( % , ( ! , 1), ( $ , 2)))"],
+		["1 ! 2 3 - $ $ ! *", "( * , ( ! , 1), ( ! , ( $ , ( $ , ( - , 2, 3)))))"],
+	];
+	
+	foreach(test_case; test_cases)
+	{
+		assert(parsePostfixExpression(test_case[0].dup).serialize() == test_case[1]);
+	} // end foreach
+} // end unittest

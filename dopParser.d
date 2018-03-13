@@ -280,163 +280,165 @@ Expression parseInfixExpression(char[] input)
 
 unittest
 {
-	bool check(string input, string output)
+	auto test_cases = [
+		// basic infix operations
+		["2", "2"],
+		["2 + 3", "( + , 2, 3)"],
+		["a - b", "( - , a, b)"],
+		["a + b + c", "( + , ( + , a, b), c)"],
+		["a - b - c", "( - , ( - , a, b), c)"],
+		["a + b - c", "( - , ( + , a, b), c)"],
+		["a + b - c + d - e", "( - , ( + , ( - , ( + , a, b), c), d), e)"],
+		["a * b * c", "( * , ( * , a, b), c)"],
+		["a / b / c", "( / , ( / , a, b), c)"],
+		["a * b / c", "( / , ( * , a, b), c)"],
+		["a * b / c * d / e", "( / , ( * , ( / , ( * , a, b), c), d), e)"],
+		["a = b = c", "( = , a, ( = , b, c))"],
+		["a += b += c", "( += , a, ( += , b, c))"],
+		["a = b += c", "( = , a, ( += , b, c))"],
+		["a = b += c = d += e", "( = , a, ( += , b, ( = , c, ( += , d, e))))"],
+		["2 + 3 * 4", "( + , 2, ( * , 3, 4))"],
+		["2 * 3 + 4", "( + , ( * , 2, 3), 4)"],
+		["2 - 3 / 4", "( - , 2, ( / , 3, 4))"],
+		["2 / 3 - 4", "( - , ( / , 2, 3), 4)"],
+		["2 = 3 .. 4", "( = , 2, ( .. , 3, 4))"],
+		["2 .. 3 = 4", "( = , ( .. , 2, 3), 4)"],
+		["2 += 3 .. 4", "( += , 2, ( .. , 3, 4))"],
+		["2 .. 3 += 4", "( += , ( .. , 2, 3), 4)"],
+		["a += b = 3 * b + 2", "( += , a, ( = , b, ( + , ( * , 3, b), 2)))"],
+		// tuples
+		["( )", "( ( )"],
+		["[ ]", "( [ )"],
+		["{ }", "( { )"],
+		["( 2 )", "( ( , 2)"],
+		["[ 2 ]", "( [ , 2)"],
+		["{ 2 }", "( { , 2)"],
+		["( 2 , 3 )", "( ( , 2, 3)"],
+		["[ 2 , 3 ]", "( [ , 2, 3)"],
+		["{ 2 . 3 }", "( { , 2, 3)"],
+		["( 2 , 3 , 4 )", "( ( , 2, 3, 4)"],
+		["[ 2 , 3 , 4 ]", "( [ , 2, 3, 4)"],
+		["{ 2 . 3 . 4 }", "( { , 2, 3, 4)"],
+		["( a + b )", "( ( , ( + , a, b))"],
+		["[ a + b ]", "( [ , ( + , a, b))"],
+		["{ a + b }", "( { , ( + , a, b))"],
+		["( a + b , 3 )", "( ( , ( + , a, b), 3)"],
+		["[ a + b , 3 ]", "( [ , ( + , a, b), 3)"],
+		["{ a + b . 3 }", "( { , ( + , a, b), 3)"],
+		["( a + b , 3 , 4 )", "( ( , ( + , a, b), 3, 4)"],
+		["[ a + b , 3 , 4 ]", "( [ , ( + , a, b), 3, 4)"],
+		["{ a + b . 3 . 4 }", "( { , ( + , a, b), 3, 4)"],
+		["( a + b , c .. d )", "( ( , ( + , a, b), ( .. , c, d))"],
+		["[ a + b , c .. d ]", "( [ , ( + , a, b), ( .. , c, d))"],
+		["{ a + b . c .. d }", "( { , ( + , a, b), ( .. , c, d))"],
+		["( a + b , c .. d , 4 )", "( ( , ( + , a, b), ( .. , c, d), 4)"],
+		["[ a + b , c .. d , 4 ]", "( [ , ( + , a, b), ( .. , c, d), 4)"],
+		["{ a + b . c .. d . 4 }", "( { , ( + , a, b), ( .. , c, d), 4)"],
+		["( a + b , c .. d , e * f )", "( ( , ( + , a, b), ( .. , c, d), ( * , e, f))"],
+		["[ a + b , c .. d , e * f ]", "( [ , ( + , a, b), ( .. , c, d), ( * , e, f))"],
+		["{ a + b . c .. d . e * f }", "( { , ( + , a, b), ( .. , c, d), ( * , e, f))"],
+		// grouping
+		["( a + b ) + c", "( + , ( ( , ( + , a, b)), c)"],
+		["( a - b ) - c", "( - , ( ( , ( - , a, b)), c)"],
+		["a + ( b + c )", "( + , a, ( ( , ( + , b, c)))"],
+		["a - ( b - c )", "( - , a, ( ( , ( - , b, c)))"],
+		["[ a + b ] + c", "( + , ( [ , ( + , a, b)), c)"],
+		["[ a - b ] - c", "( - , ( [ , ( - , a, b)), c)"],
+		["a + [ b + c ]", "( + , a, ( [ , ( + , b, c)))"],
+		["a - [ b - c ]", "( - , a, ( [ , ( - , b, c)))"],
+		["{ a + b } + c", "( + , ( { , ( + , a, b)), c)"],
+		["{ a - b } - c", "( - , ( { , ( - , a, b)), c)"],
+		["a + { b + c }", "( + , a, ( { , ( + , b, c)))"],
+		["a - { b - c }", "( - , a, ( { , ( - , b, c)))"],
+		// nested tuples
+		["2 + ( a , ( b , c ) )", "( + , 2, ( ( , a, ( ( , b, c)))"],
+		// basic juxtaposition
+		["a b", "(  , a, b)"],
+		["a b c", "(  , (  , a, b), c)"],
+		["a b * c", "( * , (  , a, b), c)"],
+		["a * b c", "(  , ( * , a, b), c)"],
+		["a + b c", "( + , a, (  , b, c))"],
+		["a b + c", "( + , (  , a, b), c)"],
+		// juxtaposition + tuples
+		["a ( b )", "(  , a, ( ( , b))"],
+		["( a ) b", "(  , ( ( , a), b)"],
+		["a ( b c )", "(  , a, ( ( , (  , b, c)))"],
+		["( a b ) c", "(  , ( ( , (  , a, b)), c)"],
+		["a ( b , c )", "(  , a, ( ( , b, c))"],
+		["( a , b ) c", "(  , ( ( , a, b), c)"],
+		// basic postfix operations
+		["a ++", "( post ++ , a)"],
+		["a --", "( post -- , a)"],
+		["a ++ --", "( post -- , ( post ++ , a))"],
+		["a -- ++", "( post ++ , ( post -- , a))"],
+		// postfix + tuples
+		["( a ) ++", "( post ++ , ( ( , a))"],
+		["( a ) --", "( post -- , ( ( , a))"],
+		["( a ) ++ --", "( post -- , ( post ++ , ( ( , a)))"],
+		["( a ) -- ++", "( post ++ , ( post -- , ( ( , a)))"],
+		["( a ++ ) --", "( post -- , ( ( , ( post ++ , a)))"],
+		["( a -- ) ++", "( post ++ , ( ( , ( post -- , a)))"],
+		// basic prefix operations
+		["++ a", "( pre ++ , a)"],
+		["-- a", "( pre -- , a)"],
+		["-- ++ a", "( pre -- , ( pre ++ , a))"],
+		["++ -- a", "( pre ++ , ( pre -- , a))"],
+		["+ a", "( pre + , a)"],
+		["- a", "( pre - , a)"],
+		["- + a", "( pre - , ( pre + , a))"],
+		["+ - a", "( pre + , ( pre - , a))"],
+		// prefix + tuples
+		["++ ( a )", "( pre ++ , ( ( , a))"],
+		["-- ( a )", "( pre -- , ( ( , a))"],
+		["-- ++ ( a )", "( pre -- , ( pre ++ , ( ( , a)))"],
+		["++ -- ( a )", "( pre ++ , ( pre -- , ( ( , a)))"],
+		["-- ( ++ a )", "( pre -- , ( ( , ( pre ++ , a)))"],
+		["++ ( -- a )", "( pre ++ , ( ( , ( pre -- , a)))"],
+		["+ ( a )", "( pre + , ( ( , a))"],
+		["- ( a )", "( pre - , ( ( , a))"],
+		["- + ( a )", "( pre - , ( pre + , ( ( , a)))"],
+		["+ - ( a )", "( pre + , ( pre - , ( ( , a)))"],
+		["- ( + a )", "( pre - , ( ( , ( pre + , a)))"],
+		["+ ( - a )", "( pre + , ( ( , ( pre - , a)))"],
+		// prefix + postfix
+		["-- a ++", "( post ++ , ( pre -- , a))"],
+		["++ a --", "( post -- , ( pre ++ , a))"],
+		["-- a ++ --", "( post -- , ( post ++ , ( pre -- , a)))"],
+		["++ a -- ++", "( post ++ , ( post -- , ( pre ++ , a)))"],
+		["- a ++", "( post ++ , ( pre - , a))"],
+		["+ a --", "( post -- , ( pre + , a))"],
+		["- a ++ --", "( post -- , ( post ++ , ( pre - , a)))"],
+		["+ a -- ++", "( post ++ , ( post -- , ( pre + , a)))"],
+		["++ - a ++", "( post ++ , ( pre ++ , ( pre - , a)))"],
+		["++ + a --", "( post -- , ( pre ++ , ( pre + , a)))"],
+		["++ - a ++ --", "( post -- , ( post ++ , ( pre ++ , ( pre - , a))))"],
+		["++ + a -- ++", "( post ++ , ( post -- , ( pre ++ , ( pre + , a))))"],
+		// prefix + postfix + grouping
+		["( -- a ) ++", "( post ++ , ( ( , ( pre -- , a)))"],
+		["++ ( a -- )", "( pre ++ , ( ( , ( post -- , a)))"],
+		["-- ( a ++ ) --", "( post -- , ( pre -- , ( ( , ( post ++ , a))))"],
+		["++ ( a -- ++ )", "( pre ++ , ( ( , ( post ++ , ( post -- , a))))"],
+		// prefix + postfix + tuples
+		["-- ( a ++ , b ) --", "( post -- , ( pre -- , ( ( , ( post ++ , a), b)))"],
+		["++ ( a -- , b ++ )", "( pre ++ , ( ( , ( post -- , a), ( post ++ , b)))"],
+		// infix + prefix + postfix
+		["a + + b", "( + , a, ( pre + , b))"],
+		["a - + b", "( - , a, ( pre + , b))"],
+		["a + - b", "( + , a, ( pre - , b))"],
+		["a ++ + + b", "( + , ( post ++ , a), ( pre + , b))"],
+		["a ++ - + b", "( - , ( post ++ , a), ( pre + , b))"],
+		["a ++ + - b", "( + , ( post ++ , a), ( pre - , b))"],
+
+		// juxtaposition + prefix + postfix
+		["a ** ! b", "(  , ( post ** , a), ( pre ! , b))"],
+		["a ** ! + b", "(  , ( post ** , a), ( pre ! , ( pre + , b)))"],
+		["a ++ ** ! + b", "(  , ( post ** , ( post ++ , a)), ( pre ! , ( pre + , b)))"],
+	];
+		
+	foreach(test_case; test_cases)
 	{
-		return parseInfixExpression(input.dup).serialize() == output;
-	} // end function check
-
-	// basic infix operations
-	assert(parseInfixExpression("2".dup).serialize() == "2");
-	assert(parseInfixExpression("2 + 3".dup).serialize() == "( + , 2, 3)");
-	assert(parseInfixExpression("a - b".dup).serialize() == "( - , a, b)");
-	assert(parseInfixExpression("a + b + c".dup).serialize() == "( + , ( + , a, b), c)");
-	assert(parseInfixExpression("a - b - c".dup).serialize() == "( - , ( - , a, b), c)");
-	assert(parseInfixExpression("a + b - c".dup).serialize() == "( - , ( + , a, b), c)");
-	assert(parseInfixExpression("a + b - c + d - e".dup).serialize() == "( - , ( + , ( - , ( + , a, b), c), d), e)");
-	assert(parseInfixExpression("a * b * c".dup).serialize() == "( * , ( * , a, b), c)");
-	assert(parseInfixExpression("a / b / c".dup).serialize() == "( / , ( / , a, b), c)");
-	assert(parseInfixExpression("a * b / c".dup).serialize() == "( / , ( * , a, b), c)");
-	assert(parseInfixExpression("a * b / c * d / e".dup).serialize() == "( / , ( * , ( / , ( * , a, b), c), d), e)");
-	assert(parseInfixExpression("a = b = c".dup).serialize() == "( = , a, ( = , b, c))");
-	assert(parseInfixExpression("a += b += c".dup).serialize() == "( += , a, ( += , b, c))");
-	assert(parseInfixExpression("a = b += c".dup).serialize() == "( = , a, ( += , b, c))");
-	assert(parseInfixExpression("a = b += c = d += e".dup).serialize() == "( = , a, ( += , b, ( = , c, ( += , d, e))))");
-	assert(parseInfixExpression("2 + 3 * 4".dup).serialize() == "( + , 2, ( * , 3, 4))");
-	assert(parseInfixExpression("2 * 3 + 4".dup).serialize() == "( + , ( * , 2, 3), 4)");
-	assert(parseInfixExpression("2 - 3 / 4".dup).serialize() == "( - , 2, ( / , 3, 4))");
-	assert(parseInfixExpression("2 / 3 - 4".dup).serialize() == "( - , ( / , 2, 3), 4)");
-	assert(parseInfixExpression("2 = 3 .. 4".dup).serialize() == "( = , 2, ( .. , 3, 4))");
-	assert(parseInfixExpression("2 .. 3 = 4".dup).serialize() == "( = , ( .. , 2, 3), 4)");
-	assert(parseInfixExpression("2 += 3 .. 4".dup).serialize() == "( += , 2, ( .. , 3, 4))");
-	assert(parseInfixExpression("2 .. 3 += 4".dup).serialize() == "( += , ( .. , 2, 3), 4)");
-	assert(parseInfixExpression("a += b = 3 * b + 2".dup).serialize() == "( += , a, ( = , b, ( + , ( * , 3, b), 2)))");
-	// tuples
-	assert(parseInfixExpression("( )".dup).serialize() == "( ( )");
-	assert(parseInfixExpression("[ ]".dup).serialize() == "( [ )");
-	assert(parseInfixExpression("{ }".dup).serialize() == "( { )");
-	assert(parseInfixExpression("( 2 )".dup).serialize() == "( ( , 2)");
-	assert(parseInfixExpression("[ 2 ]".dup).serialize() == "( [ , 2)");
-	assert(parseInfixExpression("{ 2 }".dup).serialize() == "( { , 2)");
-	assert(parseInfixExpression("( 2 , 3 )".dup).serialize() == "( ( , 2, 3)");
-	assert(parseInfixExpression("[ 2 , 3 ]".dup).serialize() == "( [ , 2, 3)");
-	assert(parseInfixExpression("{ 2 . 3 }".dup).serialize() == "( { , 2, 3)");
-	assert(parseInfixExpression("( 2 , 3 , 4 )".dup).serialize() == "( ( , 2, 3, 4)");
-	assert(parseInfixExpression("[ 2 , 3 , 4 ]".dup).serialize() == "( [ , 2, 3, 4)");
-	assert(parseInfixExpression("{ 2 . 3 . 4 }".dup).serialize() == "( { , 2, 3, 4)");
-	assert(parseInfixExpression("( a + b )".dup).serialize() == "( ( , ( + , a, b))");
-	assert(parseInfixExpression("[ a + b ]".dup).serialize() == "( [ , ( + , a, b))");
-	assert(parseInfixExpression("{ a + b }".dup).serialize() == "( { , ( + , a, b))");
-	assert(parseInfixExpression("( a + b , 3 )".dup).serialize() == "( ( , ( + , a, b), 3)");
-	assert(parseInfixExpression("[ a + b , 3 ]".dup).serialize() == "( [ , ( + , a, b), 3)");
-	assert(parseInfixExpression("{ a + b . 3 }".dup).serialize() == "( { , ( + , a, b), 3)");
-	assert(parseInfixExpression("( a + b , 3 , 4 )".dup).serialize() == "( ( , ( + , a, b), 3, 4)");
-	assert(parseInfixExpression("[ a + b , 3 , 4 ]".dup).serialize() == "( [ , ( + , a, b), 3, 4)");
-	assert(parseInfixExpression("{ a + b . 3 . 4 }".dup).serialize() == "( { , ( + , a, b), 3, 4)");
-	assert(parseInfixExpression("( a + b , c .. d )".dup).serialize() == "( ( , ( + , a, b), ( .. , c, d))");
-	assert(parseInfixExpression("[ a + b , c .. d ]".dup).serialize() == "( [ , ( + , a, b), ( .. , c, d))");
-	assert(parseInfixExpression("{ a + b . c .. d }".dup).serialize() == "( { , ( + , a, b), ( .. , c, d))");
-	assert(parseInfixExpression("( a + b , c .. d , 4 )".dup).serialize() == "( ( , ( + , a, b), ( .. , c, d), 4)");
-	assert(parseInfixExpression("[ a + b , c .. d , 4 ]".dup).serialize() == "( [ , ( + , a, b), ( .. , c, d), 4)");
-	assert(parseInfixExpression("{ a + b . c .. d . 4 }".dup).serialize() == "( { , ( + , a, b), ( .. , c, d), 4)");
-	assert(parseInfixExpression("( a + b , c .. d , e * f )".dup).serialize() == "( ( , ( + , a, b), ( .. , c, d), ( * , e, f))");
-	assert(parseInfixExpression("[ a + b , c .. d , e * f ]".dup).serialize() == "( [ , ( + , a, b), ( .. , c, d), ( * , e, f))");
-	assert(parseInfixExpression("{ a + b . c .. d . e * f }".dup).serialize() == "( { , ( + , a, b), ( .. , c, d), ( * , e, f))");
-	// grouping
-	assert(parseInfixExpression("( a + b ) + c".dup).serialize() == "( + , ( ( , ( + , a, b)), c)");
-	assert(parseInfixExpression("( a - b ) - c".dup).serialize() == "( - , ( ( , ( - , a, b)), c)");
-	assert(parseInfixExpression("a + ( b + c )".dup).serialize() == "( + , a, ( ( , ( + , b, c)))");
-	assert(parseInfixExpression("a - ( b - c )".dup).serialize() == "( - , a, ( ( , ( - , b, c)))");
-	assert(parseInfixExpression("[ a + b ] + c".dup).serialize() == "( + , ( [ , ( + , a, b)), c)");
-	assert(parseInfixExpression("[ a - b ] - c".dup).serialize() == "( - , ( [ , ( - , a, b)), c)");
-	assert(parseInfixExpression("a + [ b + c ]".dup).serialize() == "( + , a, ( [ , ( + , b, c)))");
-	assert(parseInfixExpression("a - [ b - c ]".dup).serialize() == "( - , a, ( [ , ( - , b, c)))");
-	assert(parseInfixExpression("{ a + b } + c".dup).serialize() == "( + , ( { , ( + , a, b)), c)");
-	assert(parseInfixExpression("{ a - b } - c".dup).serialize() == "( - , ( { , ( - , a, b)), c)");
-	assert(parseInfixExpression("a + { b + c }".dup).serialize() == "( + , a, ( { , ( + , b, c)))");
-	assert(parseInfixExpression("a - { b - c }".dup).serialize() == "( - , a, ( { , ( - , b, c)))");
-	// nested tuples
-	assert(parseInfixExpression("2 + ( a , ( b , c ) )".dup).serialize() == "( + , 2, ( ( , a, ( ( , b, c)))");
-	// basic juxtaposition
-	assert(parseInfixExpression("a b".dup).serialize() == "(  , a, b)");
-	assert(parseInfixExpression("a b c".dup).serialize() == "(  , (  , a, b), c)");
-	assert(parseInfixExpression("a b * c".dup).serialize() == "( * , (  , a, b), c)");
-	assert(parseInfixExpression("a * b c".dup).serialize() == "(  , ( * , a, b), c)");
-	assert(parseInfixExpression("a + b c".dup).serialize() == "( + , a, (  , b, c))");
-	assert(parseInfixExpression("a b + c".dup).serialize() == "( + , (  , a, b), c)");
-	// juxtaposition + tuples
-	assert(parseInfixExpression("a ( b )".dup).serialize() == "(  , a, ( ( , b))");
-	assert(parseInfixExpression("( a ) b".dup).serialize() == "(  , ( ( , a), b)");
-	assert(parseInfixExpression("a ( b c )".dup).serialize() == "(  , a, ( ( , (  , b, c)))");
-	assert(parseInfixExpression("( a b ) c".dup).serialize() == "(  , ( ( , (  , a, b)), c)");
-	assert(parseInfixExpression("a ( b , c )".dup).serialize() == "(  , a, ( ( , b, c))");
-	assert(parseInfixExpression("( a , b ) c".dup).serialize() == "(  , ( ( , a, b), c)");
-	// basic postfix operations
-	assert(parseInfixExpression("a ++".dup).serialize() == "( post ++ , a)");
-	assert(parseInfixExpression("a --".dup).serialize() == "( post -- , a)");
-	assert(parseInfixExpression("a ++ --".dup).serialize() == "( post -- , ( post ++ , a))");
-	assert(parseInfixExpression("a -- ++".dup).serialize() == "( post ++ , ( post -- , a))");
-	// postfix + tuples
-	assert(parseInfixExpression("( a ) ++".dup).serialize() == "( post ++ , ( ( , a))");
-	assert(parseInfixExpression("( a ) --".dup).serialize() == "( post -- , ( ( , a))");
-	assert(parseInfixExpression("( a ) ++ --".dup).serialize() == "( post -- , ( post ++ , ( ( , a)))");
-	assert(parseInfixExpression("( a ) -- ++".dup).serialize() == "( post ++ , ( post -- , ( ( , a)))");
-	assert(parseInfixExpression("( a ++ ) --".dup).serialize() == "( post -- , ( ( , ( post ++ , a)))");
-	assert(parseInfixExpression("( a -- ) ++".dup).serialize() == "( post ++ , ( ( , ( post -- , a)))");
-	// basic prefix operations
-	assert(parseInfixExpression("++ a".dup).serialize() == "( pre ++ , a)");
-	assert(parseInfixExpression("-- a".dup).serialize() == "( pre -- , a)");
-	assert(parseInfixExpression("-- ++ a".dup).serialize() == "( pre -- , ( pre ++ , a))");
-	assert(parseInfixExpression("++ -- a".dup).serialize() == "( pre ++ , ( pre -- , a))");
-	assert(parseInfixExpression("+ a".dup).serialize() == "( pre + , a)");
-	assert(parseInfixExpression("- a".dup).serialize() == "( pre - , a)");
-	assert(parseInfixExpression("- + a".dup).serialize() == "( pre - , ( pre + , a))");
-	assert(parseInfixExpression("+ - a".dup).serialize() == "( pre + , ( pre - , a))");
-	// prefix + tuples
-	assert(check("++ ( a )","( pre ++ , ( ( , a))"));
-	assert(check("-- ( a )","( pre -- , ( ( , a))"));
-	assert(check("-- ++ ( a )","( pre -- , ( pre ++ , ( ( , a)))"));
-	assert(check("++ -- ( a )","( pre ++ , ( pre -- , ( ( , a)))"));
-	assert(check("-- ( ++ a )","( pre -- , ( ( , ( pre ++ , a)))"));
-	assert(check("++ ( -- a )","( pre ++ , ( ( , ( pre -- , a)))"));
-	assert(check("+ ( a )","( pre + , ( ( , a))"));
-	assert(check("- ( a )","( pre - , ( ( , a))"));
-	assert(check("- + ( a )","( pre - , ( pre + , ( ( , a)))"));
-	assert(check("+ - ( a )","( pre + , ( pre - , ( ( , a)))"));
-	assert(check("- ( + a )","( pre - , ( ( , ( pre + , a)))"));
-	assert(check("+ ( - a )","( pre + , ( ( , ( pre - , a)))"));
-	// prefix + postfix
-	assert(parseInfixExpression("-- a ++".dup).serialize() == "( post ++ , ( pre -- , a))");
-	assert(parseInfixExpression("++ a --".dup).serialize() == "( post -- , ( pre ++ , a))");
-	assert(parseInfixExpression("-- a ++ --".dup).serialize() == "( post -- , ( post ++ , ( pre -- , a)))");
-	assert(parseInfixExpression("++ a -- ++".dup).serialize() == "( post ++ , ( post -- , ( pre ++ , a)))");
-	assert(parseInfixExpression("- a ++".dup).serialize() == "( post ++ , ( pre - , a))");
-	assert(parseInfixExpression("+ a --".dup).serialize() == "( post -- , ( pre + , a))");
-	assert(parseInfixExpression("- a ++ --".dup).serialize() == "( post -- , ( post ++ , ( pre - , a)))");
-	assert(parseInfixExpression("+ a -- ++".dup).serialize() == "( post ++ , ( post -- , ( pre + , a)))");
-	assert(parseInfixExpression("++ - a ++".dup).serialize() == "( post ++ , ( pre ++ , ( pre - , a)))");
-	assert(parseInfixExpression("++ + a --".dup).serialize() == "( post -- , ( pre ++ , ( pre + , a)))");
-	assert(parseInfixExpression("++ - a ++ --".dup).serialize() == "( post -- , ( post ++ , ( pre ++ , ( pre - , a))))");
-	assert(parseInfixExpression("++ + a -- ++".dup).serialize() == "( post ++ , ( post -- , ( pre ++ , ( pre + , a))))");
-	// prefix + postfix + grouping
-	assert(parseInfixExpression("( -- a ) ++".dup).serialize() == "( post ++ , ( ( , ( pre -- , a)))");
-	assert(parseInfixExpression("++ ( a -- )".dup).serialize() == "( pre ++ , ( ( , ( post -- , a)))");
-	assert(parseInfixExpression("-- ( a ++ ) --".dup).serialize() == "( post -- , ( pre -- , ( ( , ( post ++ , a))))");
-	assert(parseInfixExpression("++ ( a -- ++ )".dup).serialize() == "( pre ++ , ( ( , ( post ++ , ( post -- , a))))");
-	// prefix + postfix + tuples
-	assert(parseInfixExpression("-- ( a ++ , b ) --".dup).serialize() == "( post -- , ( pre -- , ( ( , ( post ++ , a), b)))");
-	assert(parseInfixExpression("++ ( a -- , b ++ )".dup).serialize() == "( pre ++ , ( ( , ( post -- , a), ( post ++ , b)))");
-	// infix + prefix + postfix
-	assert(parseInfixExpression("a + + b".dup).serialize() == "( + , a, ( pre + , b))");
-	assert(parseInfixExpression("a - + b".dup).serialize() == "( - , a, ( pre + , b))");
-	assert(parseInfixExpression("a + - b".dup).serialize() == "( + , a, ( pre - , b))");
-	assert(parseInfixExpression("a ++ + + b".dup).serialize() == "( + , ( post ++ , a), ( pre + , b))");
-	assert(parseInfixExpression("a ++ - + b".dup).serialize() == "( - , ( post ++ , a), ( pre + , b))");
-	assert(parseInfixExpression("a ++ + - b".dup).serialize() == "( + , ( post ++ , a), ( pre - , b))");
-
-	// juxtaposition + prefix + postfix
-	assert(parseInfixExpression("a ** ! b".dup).serialize() == "(  , ( post ** , a), ( pre ! , b))");
-	assert(parseInfixExpression("a ** ! + b".dup).serialize() == "(  , ( post ** , a), ( pre ! , ( pre + , b)))");
-	assert(parseInfixExpression("a ++ ** ! + b".dup).serialize() == "(  , ( post ** , ( post ++ , a)), ( pre ! , ( pre + , b)))");
+		assert(parseInfixExpression(test_case[0].dup).serialize() == test_case[1]);
+	} // end foreach
 } // end unittest
 
 /*
@@ -469,8 +471,7 @@ class Operator : Symbol
 
 unittest
 {
-	auto t = new Operator("hello");
-	assert(t.name == "hello");
+	assert(new Operator("hello").name == "hello");
 }
 
 class Initiator : Symbol

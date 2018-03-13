@@ -70,7 +70,10 @@ unittest
 {
 	assert((new ExpressionAstNode("+",[
 		new ExpressionAstNode("*",[new LiteralOperand("5"),new LiteralOperand("a")]),
-		new ExpressionAstNode("-",[new LiteralOperand("b"),new LiteralOperand("2.2")])])).serialize() ==
-		"( + , ( * , 5, a), ( - , b, 2.2))");
-	assert((new ExpressionAstNode(null,[new LiteralOperand("5"),new LiteralOperand("a")])).serialize() == "(  , 5, a)");
+		new ExpressionAstNode("-",[new LiteralOperand("b"),new LiteralOperand("2.2")])
+	])).serialize() == "( + , ( * , 5, a), ( - , b, 2.2))");
+	assert((new ExpressionAstNode(null,[
+		new LiteralOperand("5"),
+		new LiteralOperand("a")
+	])).serialize() == "(  , 5, a)");
 }
