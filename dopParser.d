@@ -49,6 +49,7 @@ struct Tup
 
 /* Note: right now, the operator, initiator, separator and terminator sets must be disjoint!! */
 /* 		 also, only one associativity is expected per precedence level. */
+/*		 Last but not least, precedence for prefix and postfix operators is currently ignored. */
 Expression parseInfixExpression(
 	const Op[string] infixOperators,
 	const int[string] prefixOperators,
@@ -134,8 +135,11 @@ Expression parseInfixExpression(
 			while(true)
 			{
 				topAsInit = cast(Initiator)symbols[$-1];
-				if(topAsInit && terminators[token].initiator == topAsInit.name)
+				if(topAsInit)
+				{
+					enforce(terminators[token].initiator == topAsInit.name, "Initiator/Terminator mismatch and/or imbalance!");
 					break;
+				}
 
 				enforce(cast(Expression)symbols[$-1]);
 				if(cast(Operator)symbols[$-2])
@@ -174,7 +178,8 @@ Expression parseInfixExpression(
 			enforce(token !in prefixOperators && token !in postfixOperators);	// those cases should be handled outside
 			if(cast(Expression)symbols[$-1])
 			{
-				enforce(null in infixOperators);
+				enforce(null in infixOperators,
+					"Two consecutive operands and juxtaposition is not defined!");
 				dispatchToken(null);	// handle as infix operator
 			}
 			// reduce possible leading prefix operators
@@ -203,14 +208,16 @@ Expression parseInfixExpression(
 			{
 				if(cast(Initiator)symbols[$-1] || cast(Separator)symbols[$-1])
 				{
-					enforce(token !in separators && token !in terminators);
+					enforce(token !in separators && token !in terminators,
+						"There must be an operand in at least one side of an operator sequence!");
 				}
 				else if(token in separators || token in terminators)
 				{
 					foreach(operator; stagedOperators)
 					{
 						assert(cast(Expression)symbols[$-1]);
-						enforce(operator.name in postfixOperators);
+						enforce(operator.name in postfixOperators,
+							"Only postfix operators can exist between an operand and a separator or terminator or end of input!");
 						symbols[$-1] = new ExpressionAstNode("post " ~ operator.name,[cast(Expression)symbols[$-1]]);
 					} // end foreach
 					stagedOperators = [];
