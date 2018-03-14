@@ -276,11 +276,10 @@ Expression parseInfixExpression(
 	} // end foreach
 	processToken(enc);	// should match starting sentinel token
 
-
-	if(symbols.length == 1)
-		return (cast(ExpressionAstNode)symbols.back()).operands[0];	// remove the node created for sentinel
-	else
-		return null;
+	enforce(symbols.length == 1, "Stack not exhausted!");
+	// remove the node created for sentinel
+	auto operands = (cast(ExpressionAstNode)symbols.back()).operands;
+	return operands.length?operands[0]:null;
 } // end function parseInfixExpression
 
 unittest // positive tests

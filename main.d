@@ -111,7 +111,7 @@ void main()
 			// print output line
 			auto ast = parseInfixExpression(infix_operators, prefix_operators, postfix_operators,
 											initiators, separators, terminators, line);
-			writeln(">> ",ast?ast.serialize():"error: stack not exhausted... or something else!");
+			writeln(">> ",ast?ast.serialize():"");
 		} catch(Exception e) {
 			writeln(e.file ~ " (" ~ to!string(e.line) ~ "): " ~ "Syntax error: " ~ e.msg);
 		} // end catch
