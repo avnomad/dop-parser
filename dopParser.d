@@ -36,36 +36,36 @@ struct Op
 struct Tup
 {
 	string initiator;
-	string seperator;
+	string separator;
 	string terminator;
 
-	this(string initiator, string seperator, string terminator)
+	this(string initiator, string separator, string terminator)
 	{
 		this.initiator = initiator;
-		this.seperator = seperator;
+		this.separator = separator;
 		this.terminator = terminator;
 	}
 }
 
-Expression parseInfixExpression(char[] input)
+Expression parseInfixExpression(string input)
 {
-	/* Note: right now, the operator, initiator, seperator and terminator sets must be disjoint!! */
+	/* Note: right now, the operator, initiator, separator and terminator sets must be disjoint!! */
 	/* 		 also, only one associativity is expected per precedence level. */
-	auto infixOperators = ["+":Op(5,Assoc.left),"-":Op(5,Assoc.left),"*":Op(6,Assoc.left),"/":Op(6,Assoc.left),
+	immutable infixOperators = ["+":Op(5,Assoc.left),"-":Op(5,Assoc.left),"*":Op(6,Assoc.left),"/":Op(6,Assoc.left),
 		"=":Op(4,Assoc.right),"+=":Op(4,Assoc.right),",,":Op(3,Assoc.left),"..":Op(7,Assoc.right),null:Op(6,Assoc.left)];
-	auto prefixOperators = ["+":1,"-":1,"*":1,"++":1,"--":1,"!":1,"~":1];
-	auto postfixOperators = ["++":1,"--":1,"**":1];
+	immutable prefixOperators = ["+":1,"-":1,"*":1,"++":1,"--":1,"!":1,"~":1];
+	immutable postfixOperators = ["++":1,"--":1,"**":1];
 	string bnc = to!string(""w ~ cast(wchar)65535);	// workaround to legitimately use noncharacters...
 	string enc = to!string(""w ~ cast(wchar)65534);
-	auto paren = Tup("(",",",")"), bracket = Tup("[",",","]"), brace = Tup("{",".","}"), eoe = Tup(bnc,"",enc);
-	auto initiators = ["(":paren,"[":bracket,"{":brace,bnc:eoe];
-	auto seperators = [",":paren,",":bracket,".":brace];
-	auto terminators = [")":paren,"]":bracket,"}":brace,enc:eoe];
+	immutable paren = Tup("(",",",")"), bracket = Tup("[",",","]"), brace = Tup("{",".","}"), eoe = Tup(bnc,"",enc);
+	immutable initiators = ["(":paren,"[":bracket,"{":brace,bnc:eoe];
+	immutable separators = [",":paren,",":bracket,".":brace];
+	immutable terminators = [")":paren,"]":bracket,"}":brace,enc:eoe];
 	Symbol[] symbols;
 	Operator[] stagedOperators;
 
 	// below some enforce calls may need to change to assert...
-	void dispatchToken(char[] token)
+	void dispatchToken(string token)
 	{
 		if(token in infixOperators) 			// operator
 		{
@@ -81,7 +81,7 @@ Expression parseInfixExpression(char[] input)
 						(infixOperators[previous.name].priority == infixOperators[token].priority &&
 						 infixOperators[token].associativity == Assoc.right))
 					{	// shift
-						symbols ~= new Operator(token.idup);
+						symbols ~= new Operator(token);
 						break;
 					}
 					else
@@ -91,9 +91,9 @@ Expression parseInfixExpression(char[] input)
 						symbols = symbols[0..$-2];
 					} // end else
 				}
-				else	// initiator || seperator
+				else	// initiator || separator
 				{	// shift
-					symbols ~= new Operator(token.idup);
+					symbols ~= new Operator(token);
 					break;
 				}
 			} // end while true
@@ -110,16 +110,16 @@ Expression parseInfixExpression(char[] input)
 			foreach(operator; stagedOperators)
 				enforce(operator.name in prefixOperators);
 			// shift
-			symbols ~= new Initiator(token.idup,stagedOperators);
+			symbols ~= new Initiator(token,stagedOperators);
 			stagedOperators = [];
 			enforce(initiators[token].initiator == token);
 		}
-		else if(token in seperators)	// seperator
+		else if(token in separators)	// separator
 		{
 			enforce(cast(Expression)symbols[$-1]);
 			// shift
-			symbols ~= new Seperator(token.idup);
-			enforce(seperators[token].seperator == token);
+			symbols ~= new Separator(token);
+			enforce(separators[token].separator == token);
 		}
 		else if(token in terminators)	// terminator
 		{
@@ -131,7 +131,7 @@ Expression parseInfixExpression(char[] input)
 				topAsInit = cast(Initiator)symbols[$-1];
 				if(topAsInit && terminators[token].initiator == topAsInit.name)
 					break;
-				
+
 				enforce(cast(Expression)symbols[$-1]);
 				if(cast(Operator)symbols[$-2])
 				{	// reduce
@@ -139,9 +139,9 @@ Expression parseInfixExpression(char[] input)
 					symbols[$-3] = new ExpressionAstNode((cast(Operator)symbols[$-2]).name,[cast(Expression)symbols[$-3],cast(Expression)symbols[$-1]]);
 					symbols = symbols[0..$-2];
 				}
-				else if(cast(Seperator)symbols[$-2])
+				else if(cast(Separator)symbols[$-2])
 				{	// save expression
-					enforce((cast(Seperator)symbols[$-2]).name == terminators[token].seperator);
+					enforce((cast(Separator)symbols[$-2]).name == terminators[token].separator);
 					operands = cast(Expression)symbols[$-1] ~ operands;
 					symbols = symbols[0..$-2];
 				}
@@ -173,7 +173,7 @@ Expression parseInfixExpression(char[] input)
 				dispatchToken(null);	// handle as infix operator
 			}
 			// reduce possible leading prefix operators
-			Expression temp = new LiteralOperand(token.idup);
+			Expression temp = new LiteralOperand(token);
 			while(!stagedOperators.empty)
 			{
 				enforce(stagedOperators[$-1].name in prefixOperators);
@@ -186,21 +186,21 @@ Expression parseInfixExpression(char[] input)
 	} // end function dispatchToken
 
 
-	void processToken(char[] token)
+	void processToken(string token)
 	{
 		if(token in infixOperators || token in prefixOperators || token in postfixOperators)
 		{
-			stagedOperators ~= new Operator(token.idup);
+			stagedOperators ~= new Operator(token);
 		}
 		else
 		{
 			if(!stagedOperators.empty)
 			{
-				if(cast(Initiator)symbols[$-1] || cast(Seperator)symbols[$-1])
+				if(cast(Initiator)symbols[$-1] || cast(Separator)symbols[$-1])
 				{
-					enforce(token !in seperators && token !in terminators);
+					enforce(token !in separators && token !in terminators);
 				}
-				else if(token in seperators || token in terminators)
+				else if(token in separators || token in terminators)
 				{
 					foreach(operator; stagedOperators)
 					{
@@ -240,7 +240,7 @@ Expression parseInfixExpression(char[] input)
 							symbols[$-1] = new ExpressionAstNode("post " ~ stagedOperators[i].name,[cast(Expression)symbols[$-1]]);
 						} // end foreach
 						assert(stagedOperators[index].name in infixOperators);
-						dispatchToken(stagedOperators[index].name.dup);
+						dispatchToken(stagedOperators[index].name);
 						stagedOperators = stagedOperators[index+1..$];
 					}
 					else if(count == 0)
@@ -269,7 +269,7 @@ Expression parseInfixExpression(char[] input)
 	{
 		processToken(token);
 	} // end foreach
-	processToken(enc.dup);	// should match starting sentinel token
+	processToken(enc);	// should match starting sentinel token
 
 
 	if(symbols.length == 1)
@@ -280,7 +280,7 @@ Expression parseInfixExpression(char[] input)
 
 unittest
 {
-	auto test_cases = [
+	immutable test_cases = [
 		// basic infix operations
 		["2", "2"],
 		["2 + 3", "( + , 2, 3)"],
@@ -434,10 +434,10 @@ unittest
 		["a ** ! + b", "(  , ( post ** , a), ( pre ! , ( pre + , b)))"],
 		["a ++ ** ! + b", "(  , ( post ** , ( post ++ , a)), ( pre ! , ( pre + , b)))"],
 	];
-		
+
 	foreach(test_case; test_cases)
 	{
-		assert(parseInfixExpression(test_case[0].dup).serialize() == test_case[1]);
+		assert(parseInfixExpression(test_case[0]).serialize() == test_case[1]);
 	} // end foreach
 } // end unittest
 
@@ -486,7 +486,7 @@ class Initiator : Symbol
 	}
 }
 
-class Seperator : Symbol
+class Separator : Symbol
 {
 	mixin Named;
 }

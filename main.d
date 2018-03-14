@@ -35,7 +35,7 @@ void main()
 	writeln("Type in a line of text and press enter. (" ~ exitMethod ~ " to exit)");
 	write("<< ");
 
-	foreach(line; stdin.byLine())
+	foreach(line; stdin.byLineCopy())
 	{
 		// print output line
 		auto ast = parseInfixExpression(line);

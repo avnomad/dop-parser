@@ -18,7 +18,7 @@
 import std.array, std.range;
 import ast;
 
-Expression parsePostfixExpression(char[] input)
+Expression parsePostfixExpression(string input)
 {
 	immutable uint[string] operators = ["+":2,"-":2,"*":2,"/":2,"%":2,"?":3,"!":1,"$":1]; // (operator symbol,#operands) pairs
 	Expression[] stack;
@@ -27,7 +27,7 @@ Expression parsePostfixExpression(char[] input)
 	{
 		if(!(token in operators)) // not an operator
 		{
-			stack ~= new LiteralOperand(token.idup);
+			stack ~= new LiteralOperand(token);
 		}
 		else // an operator
 		{
@@ -37,7 +37,7 @@ Expression parsePostfixExpression(char[] input)
 				op = stack.back();
 				stack.popBack();
 			} // end foreach
-			stack ~= new ExpressionAstNode(token.idup,operands);
+			stack ~= new ExpressionAstNode(token,operands);
 		} // end else
 	} // end foreach
 	if(stack.length == 1)
@@ -48,7 +48,7 @@ Expression parsePostfixExpression(char[] input)
 
 unittest
 {
-	auto test_cases = [
+	immutable test_cases = [
 		["2 3 +", "( + , 2, 3)"],
 		["2 3 -", "( - , 2, 3)"],
 		["2 3 *", "( * , 2, 3)"],
@@ -63,9 +63,9 @@ unittest
 		["2 3 - 3.1 + 2 5 ? 1 ! 2 $ % /", "( / , ( ? , ( + , ( - , 2, 3), 3.1), 2, 5), ( % , ( ! , 1), ( $ , 2)))"],
 		["1 ! 2 3 - $ $ ! *", "( * , ( ! , 1), ( ! , ( $ , ( $ , ( - , 2, 3)))))"],
 	];
-	
+
 	foreach(test_case; test_cases)
 	{
-		assert(parsePostfixExpression(test_case[0].dup).serialize() == test_case[1]);
+		assert(parsePostfixExpression(test_case[0]).serialize() == test_case[1]);
 	} // end foreach
 } // end unittest
