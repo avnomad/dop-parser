@@ -18,7 +18,7 @@
  *	along with DOP Parser.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import std.stdio, std.string;
+import std.stdio, std.string, std.array, std.conv;
 import dopParser;
 
 version(Windows)
@@ -32,25 +32,90 @@ else
 
 void main()
 {
-	immutable infix_operators = ["+":Op(5,Assoc.left),"-":Op(5,Assoc.left),"*":Op(6,Assoc.left),"/":Op(6,Assoc.left),
-		"=":Op(4,Assoc.right),"+=":Op(4,Assoc.right),",,":Op(3,Assoc.left),"..":Op(7,Assoc.right),null:Op(6,Assoc.left)];
-	immutable prefix_operators = ["+":1,"-":1,"*":1,"++":1,"--":1,"!":1,"~":1];
-	immutable postfix_operators = ["++":1,"--":1,"**":1];
+	// Operator tables
+	Op[string] infix_operators;
+	int[string] prefix_operators;
+	int[string] postfix_operators;
 
-	immutable paren = Tup("(",",",")"), bracket = Tup("[",",","]"), brace = Tup("{",".","}");
-	Tup[string] initiators = ["(":paren,"[":bracket,"{":brace];
-	immutable separators = [",":paren,",":bracket,".":brace];
-	Tup[string] terminators = [")":paren,"]":bracket,"}":brace];
+	Tup[string] initiators;
+	Tup[string] separators;
+	Tup[string] terminators;
 
-	writeln("Type in a line of text and press enter. (" ~ exitMethod ~ " to exit)");
+	//
+	// Operator declaration phase.
+	//
+	writeln("Declare a new operator on each line. An empty line proceeds to the next phase.");
+	writeln("The valid declarations have one of the following forms:");
+	writeln("    prefix <name>");
+	writeln("    postfix <name>");
+	writeln("    infix <name> <integer_precedence> <associativity>");
+	writeln("    confix <initiator_name> <terminator_name>");
+	writeln("    juxtaposition <integer_precedence> <associativity>");
+	writeln("    list <initiator_name> <seperator_name> <terminator_name>");
+	writeln("<associativity> can be 'left' or 'right'");
+	write("<~ ");
+
+	enum Declaration {prefix, postfix, infix, confix, juxtaposition, list}
+	immutable n_arguments = [
+		Declaration.prefix:1, Declaration.postfix:1, Declaration.infix:3,
+		Declaration.confix:2, Declaration.juxtaposition:2, Declaration.list:3
+	];
+	foreach(line; stdin.byLineCopy())
+	{
+		try	{
+			auto tokens = std.array.split(line);
+
+			if(tokens.length == 0)
+				break;
+			else if(n_arguments[to!Declaration(tokens[0])] != tokens.length-1)
+				writeln("Incorrect number of arguments for '" ~ tokens[0] ~ "': " ~ to!string(tokens.length-1) ~ ".");
+			else
+				final switch(to!Declaration(tokens[0]))
+				{
+					case Declaration.prefix:
+						prefix_operators[tokens[1]] = 1; // dummy precedence
+						break;
+					case Declaration.postfix:
+						postfix_operators[tokens[1]] = 1; // dummy precedence
+						break;
+					case Declaration.infix:
+						infix_operators[tokens[1]] = Op(to!int(tokens[2]),to!Assoc(tokens[3]));
+						break;
+					case Declaration.confix:
+						auto tup = Tup(tokens[1], "", tokens[2]);
+						initiators[tokens[1]] = terminators[tokens[2]] = tup;
+						break;
+					case Declaration.juxtaposition:
+						infix_operators[null] = Op(to!int(tokens[1]),to!Assoc(tokens[2]));
+						break;
+					case Declaration.list:
+						auto tup = Tup(tokens[1], tokens[2], tokens[3]);
+						initiators[tokens[1]] = separators[tokens[2]] = terminators[tokens[3]] = tup;
+						break;
+				} // end switch
+		} catch(Exception e) {
+			writeln(e.msg);
+		}
+		write("<~ ");
+	} // end foreach
+
+	//
+	// Expression parsing phase.
+	//
+	writeln("Type an expression to parse or " ~ exitMethod ~ " to exit. (whitespace separates tokens)");
 	write("<< ");
 
 	foreach(line; stdin.byLineCopy())
 	{
-		// print output line
-		auto ast = parseInfixExpression(infix_operators, prefix_operators, postfix_operators,
-										initiators, separators, terminators, line);
-		writeln(">> ",ast?ast.serialize():"error: stack not exhausted... or something else!");
+		try	{
+			// print output line
+			auto ast = parseInfixExpression(infix_operators, prefix_operators, postfix_operators,
+											initiators, separators, terminators, line);
+			writeln(">> ",ast?ast.serialize():"error: stack not exhausted... or something else!");
+		} catch(Exception e) {
+			writeln(e.file ~ " (" ~ to!string(e.line) ~ "): " ~ "Syntax error: " ~ e.msg);
+		} // end catch
+
 		// prepare for new input
 		write("<< ");
 	} // end foreach
