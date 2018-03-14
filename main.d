@@ -32,13 +32,24 @@ else
 
 void main()
 {
+	immutable infix_operators = ["+":Op(5,Assoc.left),"-":Op(5,Assoc.left),"*":Op(6,Assoc.left),"/":Op(6,Assoc.left),
+		"=":Op(4,Assoc.right),"+=":Op(4,Assoc.right),",,":Op(3,Assoc.left),"..":Op(7,Assoc.right),null:Op(6,Assoc.left)];
+	immutable prefix_operators = ["+":1,"-":1,"*":1,"++":1,"--":1,"!":1,"~":1];
+	immutable postfix_operators = ["++":1,"--":1,"**":1];
+
+	immutable paren = Tup("(",",",")"), bracket = Tup("[",",","]"), brace = Tup("{",".","}");
+	Tup[string] initiators = ["(":paren,"[":bracket,"{":brace];
+	immutable separators = [",":paren,",":bracket,".":brace];
+	Tup[string] terminators = [")":paren,"]":bracket,"}":brace];
+
 	writeln("Type in a line of text and press enter. (" ~ exitMethod ~ " to exit)");
 	write("<< ");
 
 	foreach(line; stdin.byLineCopy())
 	{
 		// print output line
-		auto ast = parseInfixExpression(line);
+		auto ast = parseInfixExpression(infix_operators, prefix_operators, postfix_operators,
+										initiators, separators, terminators, line);
 		writeln(">> ",ast?ast.serialize():"error: stack not exhausted... or something else!");
 		// prepare for new input
 		write("<< ");

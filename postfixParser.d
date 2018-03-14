@@ -18,9 +18,9 @@
 import std.array, std.range;
 import ast;
 
-Expression parsePostfixExpression(string input)
+// operators is a map from operator name to number of operands.
+Expression parsePostfixExpression(const int[string] operators, string input)
 {
-	immutable uint[string] operators = ["+":2,"-":2,"*":2,"/":2,"%":2,"?":3,"!":1,"$":1]; // (operator symbol,#operands) pairs
 	Expression[] stack;
 
 	foreach(token; std.array.split(input))
@@ -48,6 +48,8 @@ Expression parsePostfixExpression(string input)
 
 unittest
 {
+	immutable operators = ["+":2,"-":2,"*":2,"/":2,"%":2,"?":3,"!":1,"$":1]; // (operator symbol,#operands) pairs
+
 	immutable test_cases = [
 		["2 3 +", "( + , 2, 3)"],
 		["2 3 -", "( - , 2, 3)"],
@@ -66,6 +68,6 @@ unittest
 
 	foreach(test_case; test_cases)
 	{
-		assert(parsePostfixExpression(test_case[0]).serialize() == test_case[1]);
+		assert(parsePostfixExpression(operators, test_case[0]).serialize() == test_case[1]);
 	} // end foreach
 } // end unittest

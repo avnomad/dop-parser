@@ -47,21 +47,26 @@ struct Tup
 	}
 }
 
-Expression parseInfixExpression(string input)
+/* Note: right now, the operator, initiator, separator and terminator sets must be disjoint!! */
+/* 		 also, only one associativity is expected per precedence level. */
+Expression parseInfixExpression(
+	const Op[string] infixOperators,
+	const int[string] prefixOperators,
+	const int[string] postfixOperators,
+	Tup[string] initiators,
+	const Tup[string] separators,
+	Tup[string] terminators,
+	string input)
 {
-	/* Note: right now, the operator, initiator, separator and terminator sets must be disjoint!! */
-	/* 		 also, only one associativity is expected per precedence level. */
-	immutable infixOperators = ["+":Op(5,Assoc.left),"-":Op(5,Assoc.left),"*":Op(6,Assoc.left),"/":Op(6,Assoc.left),
-		"=":Op(4,Assoc.right),"+=":Op(4,Assoc.right),",,":Op(3,Assoc.left),"..":Op(7,Assoc.right),null:Op(6,Assoc.left)];
-	immutable prefixOperators = ["+":1,"-":1,"*":1,"++":1,"--":1,"!":1,"~":1];
-	immutable postfixOperators = ["++":1,"--":1,"**":1];
+	// Modify tables to treat start- and end-of-input as a confix operator.
 	string bnc = to!string(""w ~ cast(wchar)65535);	// workaround to legitimately use noncharacters...
 	string enc = to!string(""w ~ cast(wchar)65534);
-	immutable paren = Tup("(",",",")"), bracket = Tup("[",",","]"), brace = Tup("{",".","}"), eoe = Tup(bnc,"",enc);
-	immutable initiators = ["(":paren,"[":bracket,"{":brace,bnc:eoe];
-	immutable separators = [",":paren,",":bracket,".":brace];
-	immutable terminators = [")":paren,"]":bracket,"}":brace,enc:eoe];
-	Symbol[] symbols;
+	immutable eoe = Tup(bnc,"",enc);
+	initiators[bnc] = eoe;
+	terminators[enc] = eoe;
+	
+	// Data structures required by the algorithm:
+	Symbol[] symbols; // used as a stack
 	Operator[] stagedOperators;
 
 	// below some enforce calls may need to change to assert...
@@ -280,6 +285,17 @@ Expression parseInfixExpression(string input)
 
 unittest
 {
+	// TODO: add tests related to how operator tables are modified by the parser.
+	immutable infix_operators = ["+":Op(5,Assoc.left),"-":Op(5,Assoc.left),"*":Op(6,Assoc.left),"/":Op(6,Assoc.left),
+		"=":Op(4,Assoc.right),"+=":Op(4,Assoc.right),",,":Op(3,Assoc.left),"..":Op(7,Assoc.right),null:Op(6,Assoc.left)];
+	immutable prefix_operators = ["+":1,"-":1,"*":1,"++":1,"--":1,"!":1,"~":1];
+	immutable postfix_operators = ["++":1,"--":1,"**":1];
+
+	immutable paren = Tup("(",",",")"), bracket = Tup("[",",","]"), brace = Tup("{",".","}");
+	Tup[string] initiators = ["(":paren,"[":bracket,"{":brace];
+	immutable separators = [",":paren,",":bracket,".":brace];
+	Tup[string] terminators = [")":paren,"]":bracket,"}":brace];
+	
 	immutable test_cases = [
 		// basic infix operations
 		["2", "2"],
@@ -437,7 +453,8 @@ unittest
 
 	foreach(test_case; test_cases)
 	{
-		assert(parseInfixExpression(test_case[0]).serialize() == test_case[1]);
+		assert(parseInfixExpression(infix_operators, prefix_operators, postfix_operators,
+			initiators, separators, terminators, test_case[0]).serialize() == test_case[1]);
 	} // end foreach
 } // end unittest
 
