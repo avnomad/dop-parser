@@ -283,7 +283,7 @@ Expression parseInfixExpression(
 		return null;
 } // end function parseInfixExpression
 
-unittest
+unittest // positive tests
 {
 	// TODO: add tests related to how operator tables are modified by the parser.
 	immutable infix_operators = ["+":Op(5,Assoc.left),"-":Op(5,Assoc.left),"*":Op(6,Assoc.left),"/":Op(6,Assoc.left),
@@ -458,18 +458,21 @@ unittest
 	} // end foreach
 } // end unittest
 
-/*
-	TODO: add the following test case (suggested by u_quark) to the test suite.
-		This will require refactoring code to take the symbol table as an argument.
+unittest // negative tests
+{
+	immutable infix_operators = ["++":Op(8,Assoc.left),"%":Op(4,Assoc.right),"*":Op(2,Assoc.left),"/":Op(6,Assoc.left)];
+	immutable prefix_operators = ["++":6];
+	immutable postfix_operators = ["*":0];
+	
+	Tup[string] initiators;
+	immutable Tup[string] separators;
+	Tup[string] terminators;
+	
+	assert(collectExceptionMsg(parseInfixExpression(infix_operators, prefix_operators, 
+		postfix_operators, initiators, separators, terminators, "p * ++ q % r".dup)
+	) == "Enforcement failed");
+} // end unittest
 
-	++ infix L
-	++ pre
-	% infix
-	* infix L
-	* post
-	p * ++ q % r
-
-*/
 
 mixin template Named()
 {
