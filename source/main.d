@@ -52,7 +52,9 @@ void main()
 	writeln("    confix <initiator_name> <terminator_name>");
 	writeln("    juxtaposition <integer_precedence> <associativity>");
 	writeln("    list <initiator_name> <seperator_name> <terminator_name>");
-	writeln("<associativity> can be 'left' or 'right'");
+	writeln("<associativity> can be 'left' or 'right'.");
+	writeln("Currently prefix operators have higher precedence than postfix operators which\n"
+		  ~ "have higher precedence than infix operators. This will change in the future.");
 	write("<~ ");
 
 	enum Declaration {prefix, postfix, infix, confix, juxtaposition, list}

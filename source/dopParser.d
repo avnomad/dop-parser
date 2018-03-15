@@ -228,24 +228,25 @@ Expression parseInfixExpression(
 				{
 					foreach(operator; stagedOperators)
 					{
-						assert(cast(Expression)symbols[$-1]);
+						assert(cast(Expression)symbols[$-1]); // it's not an initiator, separator or terminator and there are staged operators.
 						enforce(operator.name in postfixOperators,
-							"Only postfix operators can exist between an operand and a separator or terminator or end of input!");
+							"Only postfix operators can exist between an operand and a terminator (or separator or end of input)!");
 						symbols[$-1] = new ExpressionAstNode("post " ~ operator.name,[cast(Expression)symbols[$-1]]);
 					} // end foreach
 					stagedOperators = [];
 				}
-				else
+				else // token should be initiator or operand
 				{
-					assert(cast(Expression)symbols[$-1]);	// token should be initiator or operand
+					assert(cast(Expression)symbols[$-1]); // can't be a terminator and we've checked for initiator and separator and there are staged operators.
 					long firstNonPost = 0;	// from the left
 					while(firstNonPost < stagedOperators.length && stagedOperators[firstNonPost].name in postfixOperators)
 						firstNonPost++;
 					long lastNonPre = stagedOperators.length-1;	// from the left
 					while(lastNonPre > -1 && stagedOperators[lastNonPre].name in prefixOperators)
 						lastNonPre--;
-					long count = 0;
-					long index = -1;
+
+					// count infix operators inside the range:
+					long count = 0, index = -1;
 					for(auto i = max(0,lastNonPre) ; i <= min(stagedOperators.length-1,firstNonPost) ; i++)
 					{
 						if(stagedOperators[i].name in infixOperators)
@@ -254,31 +255,35 @@ Expression parseInfixExpression(
 							index = i;
 						} // end if
 					} // end for
-					enforce(count <= 1);	// or else ambiguity
-					if(count == 1)
+
+					enforce(count <= 1,
+						"Ambiguous expression: more than one assignment of fixities to operators is possible!");
+					if(count == 1) // a single infix
 					{
 						// reduce postfix operators
 						foreach(i; 0..index)
 						{
-							assert(cast(Expression)symbols[$-1]);
-							assert(stagedOperators[i].name in postfixOperators);
+							assert(cast(Expression)symbols[$-1]); // still an expression (checked above)
+							assert(stagedOperators[i].name in postfixOperators); // due to the way index is calculated.
 							symbols[$-1] = new ExpressionAstNode("post " ~ stagedOperators[i].name,[cast(Expression)symbols[$-1]]);
 						} // end foreach
-						assert(stagedOperators[index].name in infixOperators);
+						assert(stagedOperators[index].name in infixOperators); // due to the way index is calculated.
 						dispatchToken(stagedOperators[index].name);
 						stagedOperators = stagedOperators[index+1..$];
 					}
-					else if(count == 0)
+					else if(count == 0) // juxtaposition
 					{
-						enforce(firstNonPost-lastNonPre == 1);
+						enforce(firstNonPost-lastNonPre == 1,
+							"Ambiguous expression: multiple valid positions for juxtaposition operator!");
 						// reduce postfix operators
 						foreach(i; 0..firstNonPost)
 						{
-							assert(cast(Expression)symbols[$-1]);
-							assert(stagedOperators[i].name in postfixOperators);
+							assert(cast(Expression)symbols[$-1]); // still an expression (checked above)
+							assert(stagedOperators[i].name in postfixOperators); // due to the way firstNonPost is calculated.
 							symbols[$-1] = new ExpressionAstNode("post " ~ stagedOperators[i].name,[cast(Expression)symbols[$-1]]);
 						} // end foreach
-						enforce(null in infixOperators);
+						enforce(null in infixOperators,
+							"Two operands without any infix operator between them, but juxtaposition is not defined!");
 						dispatchToken(null);
 						stagedOperators = stagedOperators[firstNonPost..$];
 					} // end if
@@ -489,7 +494,7 @@ unittest // negative tests
 	
 	assert(collectExceptionMsg(parseInfixExpression(infix_operators, prefix_operators, 
 		postfix_operators, initiators, separators, terminators, "p * ++ q % r".dup)
-	) == "Enforcement failed");
+	) == "Ambiguous expression: more than one assignment of fixities to operators is possible!");
 } // end unittest
 
 
