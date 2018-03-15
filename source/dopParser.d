@@ -214,83 +214,82 @@ Expression parseInfixExpression(
 		if(token in infixOperators || token in prefixOperators || token in postfixOperators)
 		{
 			stagedOperators ~= new Operator(token);
-		}
-		else
+			return;
+		} // end if
+
+		if(!stagedOperators.empty)
 		{
-			if(!stagedOperators.empty)
+			if(cast(Initiator)symbols[$-1] || cast(Separator)symbols[$-1])
 			{
-				if(cast(Initiator)symbols[$-1] || cast(Separator)symbols[$-1])
+				enforce(token !in separators && token !in terminators,
+					"There must be an operand in at least one side of an operator sequence!");
+			}
+			else if(token in separators || token in terminators)
+			{
+				foreach(operator; stagedOperators)
 				{
-					enforce(token !in separators && token !in terminators,
-						"There must be an operand in at least one side of an operator sequence!");
-				}
-				else if(token in separators || token in terminators)
-				{
-					foreach(operator; stagedOperators)
-					{
-						assert(cast(Expression)symbols[$-1]); // it's not an initiator, separator or terminator and there are staged operators.
-						enforce(operator.name in postfixOperators,
-							"Only postfix operators can exist between an operand and a terminator (or separator or end of input)!");
-						symbols[$-1] = new ExpressionAstNode("post " ~ operator.name,[cast(Expression)symbols[$-1]]);
-					} // end foreach
-					stagedOperators = [];
-				}
-				else // token should be initiator or operand
-				{
-					assert(cast(Expression)symbols[$-1]); // can't be a terminator and we've checked for initiator and separator and there are staged operators.
-					long firstNonPost = 0;	// from the left
-					while(firstNonPost < stagedOperators.length && stagedOperators[firstNonPost].name in postfixOperators)
-						firstNonPost++;
-					long lastNonPre = stagedOperators.length-1;	// from the left
-					while(lastNonPre > -1 && stagedOperators[lastNonPre].name in prefixOperators)
-						lastNonPre--;
+					assert(cast(Expression)symbols[$-1]); // it's not an initiator, separator or terminator and there are staged operators.
+					enforce(operator.name in postfixOperators,
+						"Only postfix operators can exist between an operand and a terminator (or separator or end of input)!");
+					symbols[$-1] = new ExpressionAstNode("post " ~ operator.name,[cast(Expression)symbols[$-1]]);
+				} // end foreach
+				stagedOperators = [];
+			}
+			else // token should be initiator or operand
+			{
+				assert(cast(Expression)symbols[$-1]); // can't be a terminator and we've checked for initiator and separator and there are staged operators.
+				long firstNonPost = 0;	// from the left
+				while(firstNonPost < stagedOperators.length && stagedOperators[firstNonPost].name in postfixOperators)
+					firstNonPost++;
+				long lastNonPre = stagedOperators.length-1;	// from the left
+				while(lastNonPre > -1 && stagedOperators[lastNonPre].name in prefixOperators)
+					lastNonPre--;
 
-					// count infix operators inside the range:
-					long count = 0, index = -1;
-					for(auto i = max(0,lastNonPre) ; i <= min(stagedOperators.length-1,firstNonPost) ; i++)
+				// count infix operators inside the range:
+				long count = 0, index = -1;
+				for(auto i = max(0,lastNonPre) ; i <= min(stagedOperators.length-1,firstNonPost) ; i++)
+				{
+					if(stagedOperators[i].name in infixOperators)
 					{
-						if(stagedOperators[i].name in infixOperators)
-						{
-							count++;
-							index = i;
-						} // end if
-					} // end for
-
-					enforce(count <= 1,
-						"Ambiguous expression: more than one assignment of fixities to operators is possible!");
-					if(count == 1) // a single infix
-					{
-						// reduce postfix operators
-						foreach(i; 0..index)
-						{
-							assert(cast(Expression)symbols[$-1]); // still an expression (checked above)
-							assert(stagedOperators[i].name in postfixOperators); // due to the way index is calculated.
-							symbols[$-1] = new ExpressionAstNode("post " ~ stagedOperators[i].name,[cast(Expression)symbols[$-1]]);
-						} // end foreach
-						assert(stagedOperators[index].name in infixOperators); // due to the way index is calculated.
-						dispatchToken(stagedOperators[index].name);
-						stagedOperators = stagedOperators[index+1..$];
-					}
-					else if(count == 0) // juxtaposition
-					{
-						enforce(firstNonPost-lastNonPre == 1,
-							"Ambiguous expression: multiple valid positions for juxtaposition operator!");
-						// reduce postfix operators
-						foreach(i; 0..firstNonPost)
-						{
-							assert(cast(Expression)symbols[$-1]); // still an expression (checked above)
-							assert(stagedOperators[i].name in postfixOperators); // due to the way firstNonPost is calculated.
-							symbols[$-1] = new ExpressionAstNode("post " ~ stagedOperators[i].name,[cast(Expression)symbols[$-1]]);
-						} // end foreach
-						enforce(null in infixOperators,
-							"Two operands without any infix operator between them, but juxtaposition is not defined!");
-						dispatchToken(null);
-						stagedOperators = stagedOperators[firstNonPost..$];
+						count++;
+						index = i;
 					} // end if
-				} // end else
-			} // end if
-			dispatchToken(token);
-		} // end else
+				} // end for
+
+				enforce(count <= 1,
+					"Ambiguous expression: more than one assignment of fixities to operators is possible!");
+				if(count == 1) // a single infix
+				{
+					// reduce postfix operators
+					foreach(i; 0..index)
+					{
+						assert(cast(Expression)symbols[$-1]); // still an expression (checked above)
+						assert(stagedOperators[i].name in postfixOperators); // due to the way index is calculated.
+						symbols[$-1] = new ExpressionAstNode("post " ~ stagedOperators[i].name,[cast(Expression)symbols[$-1]]);
+					} // end foreach
+					assert(stagedOperators[index].name in infixOperators); // due to the way index is calculated.
+					dispatchToken(stagedOperators[index].name);
+					stagedOperators = stagedOperators[index+1..$];
+				}
+				else if(count == 0) // juxtaposition
+				{
+					enforce(firstNonPost-lastNonPre == 1,
+						"Ambiguous expression: multiple valid positions for juxtaposition operator!");
+					// reduce postfix operators
+					foreach(i; 0..firstNonPost)
+					{
+						assert(cast(Expression)symbols[$-1]); // still an expression (checked above)
+						assert(stagedOperators[i].name in postfixOperators); // due to the way firstNonPost is calculated.
+						symbols[$-1] = new ExpressionAstNode("post " ~ stagedOperators[i].name,[cast(Expression)symbols[$-1]]);
+					} // end foreach
+					enforce(null in infixOperators,
+						"Two operands without any infix operator between them, but juxtaposition is not defined!");
+					dispatchToken(null);
+					stagedOperators = stagedOperators[firstNonPost..$];
+				} // end if
+			} // end else
+		} // end if
+		dispatchToken(token);
 	} // end function processToken
 
 
