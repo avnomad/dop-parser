@@ -468,11 +468,19 @@ unittest // positive tests
 		["a ++ + + b", "( + , ( post ++ , a), ( pre + , b))"],
 		["a ++ - + b", "( - , ( post ++ , a), ( pre + , b))"],
 		["a ++ + - b", "( + , ( post ++ , a), ( pre - , b))"],
-
 		// juxtaposition + prefix + postfix
 		["a ** ! b", "(  , ( post ** , a), ( pre ! , b))"],
 		["a ** ! + b", "(  , ( post ** , a), ( pre ! , ( pre + , b)))"],
 		["a ++ ** ! + b", "(  , ( post ** , ( post ++ , a)), ( pre ! , ( pre + , b)))"],
+		// juxtaposition + prefix + postfix + tuples
+		["a ** ( b )", "(  , ( post ** , a), ( ( , b))"],
+		["a ! ( b )", "(  , a, ( pre ! , ( ( , b)))"],
+		["( a ) ** b", "(  , ( post ** , ( ( , a)), b)"],
+		["( a ) ! b", "(  , ( ( , a), ( pre ! , b))"],
+		["a ** ! ( b c )", "(  , ( post ** , a), ( pre ! , ( ( , (  , b, c))))"],
+		["( a b ) ** ! c", "(  , ( post ** , ( ( , (  , a, b))), ( pre ! , c))"],
+		["a ++ ** ! ~ ( b , c )", "(  , ( post ** , ( post ++ , a)), ( pre ! , ( pre ~ , ( ( , b, c))))"],
+		["( a , b ) ++ ** ! ~ c", "(  , ( post ** , ( post ++ , ( ( , a, b))), ( pre ! , ( pre ~ , c)))"],
 	];
 
 	foreach(test_case; test_cases)
