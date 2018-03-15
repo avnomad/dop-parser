@@ -70,19 +70,21 @@ Expression parseInfixExpression(
 	Symbol[] symbols; // used as a stack
 	Operator[] stagedOperators;
 
-	// below some enforce calls may need to change to assert...
+	// dispatchToken only removes operators from stagedOperators, never inserts.
 	void dispatchToken(string token)
 	{
 		if(token in infixOperators) 			// operator
 		{
-			enforce(cast(Expression)symbols[$-1]);
+			enforce(cast(Expression)symbols[$-1],
+				"An infix operator must have something to operate on on its left!");
 			while(true)
 			{
 				if(cast(Operator)symbols[$-2])	// operator
 				{
 					auto previous = cast(Operator)symbols[$-2];
 					if(infixOperators[previous.name].priority == infixOperators[token].priority)
-						enforce(infixOperators[previous.name].associativity == infixOperators[token].associativity);
+						enforce(infixOperators[previous.name].associativity == infixOperators[token].associativity,
+							"Currently only one associativity is supported per precedence level!");
 					if(infixOperators[previous.name].priority < infixOperators[token].priority ||
 						(infixOperators[previous.name].priority == infixOperators[token].priority &&
 						 infixOperators[token].associativity == Assoc.right))
@@ -92,8 +94,9 @@ Expression parseInfixExpression(
 					}
 					else
 					{	// reduce
-						enforce(cast(Expression)symbols[$-3]);
-						symbols[$-3] = new ExpressionAstNode((cast(Operator)symbols[$-2]).name,[cast(Expression)symbols[$-3],cast(Expression)symbols[$-1]]);
+						enforce(cast(Expression)symbols[$-3], // we may have already checked this...
+							"An infix operator must have something to operate on on its left!");
+						symbols[$-3] = new ExpressionAstNode(previous.name,[cast(Expression)symbols[$-3],cast(Expression)symbols[$-1]]);
 						symbols = symbols[0..$-2];
 					} // end else
 				}
@@ -106,26 +109,32 @@ Expression parseInfixExpression(
 		}
 		else if(token in initiators)	// initiator
 		{
-			assert(token !in prefixOperators && token !in postfixOperators);	// those cases should be handled outside
+			// Ideally this should be caught before the parser is called...
+			enforce(token !in prefixOperators && token !in postfixOperators,
+				"Currently an initiator can't be overloaded as an operator!");
 			if(cast(Expression)symbols[$-1])
 			{
-				enforce(null in infixOperators);	// function calls not supported yet!
+				enforce(null in infixOperators,
+					"An operable expression is followed by an initiator and juxtaposition is not defined! "
+				  ~ "(function calls are only supported as a juxtaposition of a function name and a tuple)");
 				dispatchToken(null);	// handle as infix operator
 			}
 			// handle possible leading prefix operators
 			foreach(operator; stagedOperators)
-				enforce(operator.name in prefixOperators);
+				enforce(operator.name in prefixOperators,
+					"Only prefix operators can exist between an infix operator and an initiator!");
 			// shift
 			symbols ~= new Initiator(token,stagedOperators);
 			stagedOperators = [];
-			enforce(initiators[token].initiator == token);
+			assert(initiators[token].initiator == token); // Sanity check. It should probably become a precondition.
 		}
 		else if(token in separators)	// separator
 		{
-			enforce(cast(Expression)symbols[$-1]);
+			enforce(cast(Expression)symbols[$-1],
+				"A separator must be preceded by an operable expression!");
 			// shift
 			symbols ~= new Separator(token);
-			enforce(separators[token].separator == token);
+			assert(separators[token].separator == token); // Sanity check. It should probably become a precondition.
 		}
 		else if(token in terminators)	// terminator
 		{
@@ -137,26 +146,29 @@ Expression parseInfixExpression(
 				topAsInit = cast(Initiator)symbols[$-1];
 				if(topAsInit)
 				{
-					enforce(terminators[token].initiator == topAsInit.name, "Initiator/Terminator mismatch and/or imbalance!");
+					enforce(terminators[token].initiator == topAsInit.name,
+						"Initiator/Terminator mismatch and/or imbalance!");
 					break;
 				}
 
-				enforce(cast(Expression)symbols[$-1]);
+				assert(cast(Expression)symbols[$-1]); // any syntax errors should have already be emitted by now...
 				if(cast(Operator)symbols[$-2])
 				{	// reduce
-					enforce(cast(Expression)symbols[$-3]);
+					enforce(cast(Expression)symbols[$-3], // we may have already checked this...
+						"An infix operator must have something to operate on on its left!");
 					symbols[$-3] = new ExpressionAstNode((cast(Operator)symbols[$-2]).name,[cast(Expression)symbols[$-3],cast(Expression)symbols[$-1]]);
 					symbols = symbols[0..$-2];
 				}
 				else if(cast(Separator)symbols[$-2])
 				{	// save expression
-					enforce((cast(Separator)symbols[$-2]).name == terminators[token].separator);
+					enforce((cast(Separator)symbols[$-2]).name == terminators[token].separator,
+						"Terminator/separator mismatch or missing terminator!");
 					operands = cast(Expression)symbols[$-1] ~ operands;
 					symbols = symbols[0..$-2];
 				}
-				else
+				else // Initiator
 				{	// save expression
-					enforce(cast(Initiator)symbols[$-2]);
+					assert(cast(Initiator)symbols[$-2]); // any syntax errors should have already be emitted by now...
 					operands = cast(Expression)symbols[$-1] ~ operands;
 					symbols = symbols[0..$-1];
 				} // end else
@@ -166,7 +178,7 @@ Expression parseInfixExpression(
 			Expression temp = new ExpressionAstNode(topAsInit.name,operands);
 			while(!leadingPrefixes.empty)
 			{
-				enforce(leadingPrefixes[$-1].name in prefixOperators);
+				assert(leadingPrefixes[$-1].name in prefixOperators); // should become a precondition of the Initiator constructor...
 				temp = new ExpressionAstNode("pre " ~ leadingPrefixes[$-1].name,[temp]);
 				leadingPrefixes = leadingPrefixes[0..$-1];
 			} // end while
@@ -175,18 +187,19 @@ Expression parseInfixExpression(
 		}
 		else							// operand
 		{
-			enforce(token !in prefixOperators && token !in postfixOperators);	// those cases should be handled outside
+			assert(token !in prefixOperators && token !in postfixOperators); // should become a precondition of dispatchToken
 			if(cast(Expression)symbols[$-1])
 			{
 				enforce(null in infixOperators,
-					"Two consecutive operands and juxtaposition is not defined!");
+					"Two consecutive operands, but juxtaposition is not defined!");
 				dispatchToken(null);	// handle as infix operator
 			}
 			// reduce possible leading prefix operators
 			Expression temp = new LiteralOperand(token);
 			while(!stagedOperators.empty)
 			{
-				enforce(stagedOperators[$-1].name in prefixOperators);
+				enforce(stagedOperators[$-1].name in prefixOperators,
+					"Only prefix operators can exist between an initiator (or separator or start of input) and an operand!");
 				temp = new ExpressionAstNode("pre " ~ stagedOperators[$-1].name,[temp]);
 				stagedOperators = stagedOperators[0..$-1];
 			} // end while
