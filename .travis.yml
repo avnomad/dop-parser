@@ -1,0 +1,8 @@
+# Travis CI configuration
+language: d
+
+# Test against latest versions of dmd, gdc and ldc
+d:
+  - dmd
+  - gdc
+  - ldc
