@@ -6,3 +6,12 @@ d:
   - dmd
   - gdc
   - ldc
+
+install:
+  # Download and run script from official repository that
+  # downloads latest version of doveralls to current directory.
+  - wget -q -O - "http://bit.ly/Doveralls" | bash
+
+script:
+  - dub test -b unittest-cov
+  - ./doveralls
