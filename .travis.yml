@@ -1,5 +1,6 @@
 # Travis CI configuration
 language: d
+sudo: false
 
 # Test against latest versions of dmd, gdc and ldc
 d:
@@ -8,9 +9,9 @@ d:
   - ldc
 
 install:
-  # Download and run script from official repository that
-  # downloads latest version of doveralls to current directory.
-  - wget -q -O - "http://bit.ly/Doveralls" | bash
+  # Download doveralls to current directory.
+  - wget -O doveralls "https://github.com/ColdenCullen/doveralls/releases/download/v1.3.1/doveralls_linux_travis"
+  - chmod +x doveralls
 
 script:
   - dub test -b unittest-cov
