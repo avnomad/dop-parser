@@ -310,9 +310,10 @@ unittest // positive tests
 {
 	// TODO: add tests related to how operator tables are modified by the parser.
 	immutable infix_operators = ["+":Op(5,Assoc.left),"-":Op(5,Assoc.left),"*":Op(6,Assoc.left),"/":Op(6,Assoc.left),
-		"=":Op(4,Assoc.right),"+=":Op(4,Assoc.right),",,":Op(3,Assoc.left),"..":Op(7,Assoc.right),null:Op(6,Assoc.left)];
-	immutable prefix_operators = ["+":1,"-":1,"*":1,"++":1,"--":1,"!":1,"~":1];
-	immutable postfix_operators = ["++":1,"--":1,"**":1];
+		"=":Op(4,Assoc.right),"+=":Op(4,Assoc.right),",,":Op(3,Assoc.left),"..":Op(7,Assoc.right),"?":Op(10,Assoc.right),
+		null:Op(6,Assoc.left)];
+	immutable prefix_operators = ["+":1,"-":1,"*":1,"++":1,"--":1,"!":1,"~":1,"?":1];
+	immutable postfix_operators = ["++":1,"--":1,"**":1,"?":1];
 
 	immutable paren = Tup("(",",",")"), bracket = Tup("[",",","]"), brace = Tup("{",".","}");
 	Tup[string] initiators = ["(":paren,"[":bracket,"{":brace];
@@ -467,6 +468,7 @@ unittest // positive tests
 		["a ++ + + b", "( + , ( post ++ , a), ( pre + , b))"],
 		["a ++ - + b", "( - , ( post ++ , a), ( pre + , b))"],
 		["a ++ + - b", "( + , ( post ++ , a), ( pre - , b))"],
+		["foo -- ** ? ++ ~ + bar", "( ? , ( post ** , ( post -- , foo)), ( pre ++ , ( pre ~ , ( pre + , bar))))"],
 		// juxtaposition + prefix + postfix
 		["a ** ! b", "(  , ( post ** , a), ( pre ! , b))"],
 		["a ** ! + b", "(  , ( post ** , a), ( pre ! , ( pre + , b)))"],
