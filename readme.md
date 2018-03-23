@@ -16,13 +16,13 @@ There are dozens of parsing techniques and variations thereof, making the room
 for a new one difficult to see. The following is an oversimplification, but
 popular parsers like LL(k) and LR(k) can't handle the non-determinism caused by
 the coexistence of certain operator fixities, while general parsers like GLR
-and Earley can't guarantee linear time complexity. None of the above makes it
-easy or efficient to add and remove operators on the fly.
+and Earley can't guarantee linear time complexity. None of the aforementioned
+parsers makes it easy or efficient to add and remove operators on the fly.
 
 The variation of the operator precedence parser that uses a one-dimensional
 operator table, is ideal for changing the operators on the fly, but the vanilla
-version can't handle all the constructs seen in contemporary programming
-languages.
+version can't handle all the constructs commonly used in contemporary
+programming languages.
 
 The idea was to start with a variation of an operator precedence parser similar
 to [this][6] and add a sort of pre-processing step doing an arbitrary look-ahead
@@ -34,7 +34,7 @@ at most twice to maintain the linearity of the operator precedence parser.
 
 - Linear time and memory consumption with regard to the number of input tokens
   in the worst case.
-- Works with certain ambiguous grammars, parsing unambiguous strings and
+- Works with a class of ambiguous grammars, parsing unambiguous strings and
   reporting ambiguous ones.
 - Supports infix, prefix and postfix operators as well as overloading an
   operator's fixity to be any combination of those.
@@ -45,19 +45,54 @@ at most twice to maintain the linearity of the operator precedence parser.
 
 ## Limitations
 
-These are limitations of the implementation, rather than of the algorithm but:
+Most of these are limitations of the implementation, not the algorithm but:
 
-- There is no scanner so tokens have to be separated by whitespace.
+- There is no scanner, so tokens have to be separated by whitespace.
 - The priority and associativity of the prefix and postfix operators is not
   implemented yet and ignored. Surprisingly enough, this *complicates* code.
 - General distfix operators haven't been implemented yet.
 - The parser stops at the first error and there is no support for
   [expressive diagnostics][7].
+- There is no mathematical proof that the parser recognizes the grammar I think
+  it does.
+
+## Prerequisites
+
+In order to build the project you need to have a recent version of a
+[D compiler][1] and [dub package and build manager][2] installed.
+
+## Build
+
+Execute `dub build` to build the project, or `dub test` to build and run unit
+tests.
+
+## Usage
+
+The project includes a command-line interactive driver that invokes the parser.
+
+You can build and run the project with a single command: `dub run`. Or you can
+invoke it with `./build/dop-parser` after building it.
+
+You will first be given instructions on how to define operators and then the
+option to submit expressions for parsing. The parser responds to each submitted
+expression with either a Lisp-list-like representation of the syntax tree, or
+a syntax error.
+
+Note that there is no scanner, so tokens are separated by whitespace.
+
+## Compatibility
+
+* You should be able to build the parser using any one of dmd, gdc and ldc.
+* You should also be able to run it on any one of Windows, Linux and Mac OS X,
+  although only the first two have been tested.
 
 ## How it works
 
-I have yet to find a book, post or paper describing this disambiguation scheme
-(it is very possible that I invented it), so this should serve as an overview:
+The way the parser works once we know what fixity we're dealing with — and by
+extension what's the precedence of the current token — is pretty standard. By
+contrast I have yet to find a book, post or paper describing this disambiguation
+scheme (it is very possible that I invented it) and thus, I'll include an
+overview here:
 
 ### Definitions
 
@@ -65,7 +100,7 @@ I have yet to find a book, post or paper describing this disambiguation scheme
 			  *initiator*, *terminator* or *separator*. It is intended to
 			  represent literals like `b` or `42`.
 2. *operator*: Any single token that has been declared as a *prefix*, *infix*,
-			   or *postfix* operator, or a combination of those. The declaration
+			   or *postfix* operator, or a combination of these. The declaration
 			   assigns certain attributes to the operator like its priority and
 			   associativity.
 3. *initiator*: Any single token that has been declared to begin a *confix* or
@@ -85,56 +120,57 @@ I have yet to find a book, post or paper describing this disambiguation scheme
 			   any leading or trailing *operators*.
 7. *expression*: Any token or group of tokens that follows the usual rules for
 				 building expressions from operators and operands. (e.g. E ⟶ E
-				 infix_op E)
+				 infix\_op E, E ⟶ prefix\_op E, etc.)
 
-### Operation
+### Disambiguation Scheme
 
 Let's assume a special initiator token is inserted before the begin-of-input and
 a special terminator one after the end-of-input. Now assume you see a token
 other than *operator* and you look ahead until the next non-*operator* token.
 There are 4 possibilities:
 
-1. If your first token was an *initiator* or *separator* and the second was a
-   *terminator* or *separator*, then it's an error to have any *operators* in
-   between.
-2. If your first token was an *initiator* or *separator* and the second was an
-   *initiator* or *operand*, then you must interpret all operators between them
-   as prefix ones. If you can't, it's a syntax error.
-3. If your first token was a *terminator* or *operand* and the second was a
-   *terminator* or *separator*, then you must interpret all operators between
-   them as postfix ones. If you can't, it's a syntax error.
-4. If your first token was a *terminator* or *operand* and the second was an
-   *initiator* or *operand*, then (unless you have juxtaposition defined) there
-   has to be exactly one infix operator between them possibly with postfix
-   operators before it and prefix operators after it.
+1.  If your first token was an *initiator* or *separator* and the second was a
+	*terminator* or *separator*, then it's an error to have any *operators* in
+	between.
+2.  If your first token was an *initiator* or *separator* and the second was an
+	*initiator* or *operand*, then you must interpret all operators between them
+	as prefix ones. If you can't, you issue a syntax error.
+3.  If your first token was a *terminator* or *operand* and the second was a
+	*terminator* or *separator*, then you must interpret all operators between
+	them as postfix ones. If you can't, you issue a syntax error.
+4.  If your first token was a *terminator* or *operand* and the second was an
+	*initiator* or *operand* then, unless you have juxtaposition defined, there
+	has to be exactly one infix operator between them — possibly with postfix
+	operators before it and prefix operators after it.
 
-   So you find the first operator that can't be postfix and the last that can't
-   be prefix and count the operators that *can* be infix between them:
+	So you find the first operator that can't be postfix and the last that can't
+	be prefix (both from the left) and count the operators that *can* be infix
+	between them:
 
 	1. If there are more than one, the expression is ambiguous.
-	2. If there is one you select it as the infix and interpret all operators
-       before it as postfix and all operators after it as prefix.
-	3. If there are none. You consider juxtaposition.
+	2. If there is exactly one, you select it as the infix and interpret all
+	   operators before it as postfix and all operators after it as prefix.
+	3. If there are none. You consider juxtaposition:
 
-		1. If it's not defined, you have a syntax error.
-		2. Otherwise, if the last non-prefix is exactly before the first non-
-		   postfix, you act as if there was an infix operator there with the
-		   attributes of juxtaposition.
+		1. If it's not defined, you issue a syntax error.
+		2. Otherwise, if the last non-prefix is exactly before the first
+		   non-postfix, you act as if there was an infix operator between them
+		   with the same attributes as juxtaposition.
 		3. Otherwise, the expression is ambiguous.
 
-### Example
+### Examples
 
 Consider the expression `foo ! % * ! $ + bar` where `foo` and `bar` are operands
-and the operators have been declared to match the following table. Although
+and the operators have been declared according to the following table. Although
 there are two candidate infix operators, only `*` can actually be interpreted as
 such, because otherwise we would have a prefix operator (`$`) before an infix
 one (`+`) which is a syntax error.
 
-                 -------------------------------------
+                --------------------------------------
                  prefix | v |   | v | v | v | v |
                   infix |   |   | v |   |   | v |
-                 postfix| v | v | v | v |   |   |
-                 -------------------------------------
+                postfix | v | v | v | v |   |   |
+                --------------------------------------
                     foo | ! | % | * | ! | $ | + | bar
                               ^   |   |   ^
                               |   |   |   |
@@ -151,36 +187,6 @@ one (`+`) which is a syntax error.
           Only operators inside this range can be selected as infix.
                           Only one actually is.
 
-## Prerequisites
-
-In order to build the project you need to have a recent version of a
-[D compiler][1] and [dub package and build manager][2] installed.
-
-## Build
-
-Execute `dub build` to build the project, or `dub test` to build and run unit
-tests.
-
-## Usage
-
-The project includes a command-line interactive driver that invokes the parser.
-
-You can build and run the project with a single command: `dub run`. Or you can
-Invoke it with `./build/dop-parser` after building it.
-
-You will first be given instructions on how to define operators and then the
-option to submit expressions for parsing. The parser responds to each submitted
-expression with either a Lisp-list-like representation of the syntax tree, or
-a syntax error.
-
-Note that there is no scanner, so tokens are separated by whitespace.
-
-## Compatibility
-
-* You should be able to build the parser using any one of dmd, gdc and ldc.
-* You should also be able to run it on any one of Windows, Linux and Mac OS X,
-  although only the first two have been tested.
-
 ## Mirrors
 
 Currently the project exists in two different mirrors that are kept in sync:
@@ -188,7 +194,7 @@ Currently the project exists in two different mirrors that are kept in sync:
 1. <https://github.com/avnomad/dop-parser>
 2. <https://bitbucket.org/avnomad/dop-parser>
 
-The 2nd presents a slightly more accurate picture of the project. That's because
+The 2nd presents a slightly more accurate picture of the history. That's because
 I've developed it using Mercurial and I've used a few features that aren't
 available in Git. Although all the information is preserved by the hg-git
 bridge, some commit meta-data will only be visible as part of the commit message
@@ -200,8 +206,8 @@ The first step would be to add negative tests to complete the test suite and
 reach 100% code coverage. In our case, this translates to tests ensuring correct
 behaviour on input that contains syntax errors.
 
-Then priorities and associativities need to implemented for prefix and postfix
-operators.
+Then priorities and associativities need to be implemented for prefix and
+postfix operators.
 
 In the long run, more interesting features can be added, like expressions that
 evaluate to operators instead of values.
@@ -215,9 +221,9 @@ GitHub or BitBucket.
 
 - I've used Hg branches in a rather unusual way, in this project. [This][3] blog
   post attempts to explain how and why.
-- This project uses [Semantic Versioning][4]. Since there no stable public API
-  yet, the standard only prescribes that major version should be 0, not when
-  minor and patch versions should increase. So I increase minor version when
+- This project uses [Semantic Versioning][4]. Since there is no stable public
+  API yet, the standard only prescribes that major version should be 0, not when
+  minor and patch versions should increase. So I increase the minor version when
   significant new functionality is added (regardless of its effect on the API)
   and patch version when bugs are fixed.
 
