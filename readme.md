@@ -46,6 +46,7 @@ at most twice to maintain the linearity of the operator precedence parser.
 ## Limitations
 
 These are limitations of the implementation, rather than of the algorithm but:
+
 - There is no scanner so tokens have to be separated by whitespace.
 - The priority and associativity of the prefix and postfix operators is not
   implemented yet and ignored. Surprisingly enough, this *complicates* code.
@@ -56,34 +57,99 @@ These are limitations of the implementation, rather than of the algorithm but:
 ## How it works
 
 I have yet to find a book, post or paper describing this disambiguation scheme
-(it is possible that I invented it), so this should serve as an overview:
+(it is very possible that I invented it), so this should serve as an overview:
 
 ### Definitions
 
-1. *operand*: Any single token that has not been declared as an *operator*. It
-			  is intended to represent literals like `b` or `42`.
-2. *operator*: Any single token that has been declared as such a *prefix*,
-			   *infix*, or *postfix* operator. The declaration assigns certain
-			   attributes to the operator like its priority and associativity.
+1. *operand*: Any single token that has not been declared as an *operator*,
+			  *initiator*, *terminator* or *separator*. It is intended to
+			  represent literals like `b` or `42`.
+2. *operator*: Any single token that has been declared as a *prefix*, *infix*,
+			   or *postfix* operator, or a combination of those. The declaration
+			   assigns certain attributes to the operator like its priority and
+			   associativity.
 3. *initiator*: Any single token that has been declared to begin a *confix* or
 				*list-like* *expression*. The intention is for `(`, `[`, `{`,
-				etc. to be used as *initiators*.
+				etc. to be used as *initiators*. The declaration ties it with a
+				corresponding *terminator*.
 4. *terminator*: Any single token that has been declared to end a *confix* or
 				 *list-like* *expression*. The intention is for `)`, `]`, `}`,
-				 etc. to be used as *terminators*.
+				 etc. to be used as *terminators*. The declaration ties it with
+				 a corresponding *initiator*.
 5. *separator*: Any single token that has been declared to separate individual
 				sub-expressions of a *list-like* structure. The intention is for
-				`,` to be used as a *separator*.
-6. *operable*: Any token or group of tokens forming a well-formed *expression*
-			   that evaluates to value and can have an *operator* applied to it.
-			   The difference from *expression* is that future versions of the
-			   parser will support expressions evaluating to operators.
+				`,` to be used as a *separator*. The declaration ties it with
+				 a corresponding *initiator* and *terminator*.
+6. *operable*: An *operand* or a group of tokens forming a *confix* or
+			   *list-like* *expression*. In other words, an *expression* without
+			   any leading or trailing *operators*.
 7. *expression*: Any token or group of tokens that follows the usual rules for
 				 building expressions from operators and operands. (e.g. E ⟶ E
 				 infix_op E)
 
-### Disambiguation
+### Operation
 
+Let's assume a special initiator token is inserted before the begin-of-input and
+a special terminator one after the end-of-input. Now assume you see a token
+other than *operator* and you look ahead until the next non-*operator* token.
+There are 4 possibilities:
+
+1. If your first token was an *initiator* or *separator* and the second was a
+   *terminator* or *separator*, then it's an error to have any *operators* in
+   between.
+2. If your first token was an *initiator* or *separator* and the second was an
+   *initiator* or *operand*, then you must interpret all operators between them
+   as prefix ones. If you can't, it's a syntax error.
+3. If your first token was a *terminator* or *operand* and the second was a
+   *terminator* or *separator*, then you must interpret all operators between
+   them as postfix ones. If you can't, it's a syntax error.
+4. If your first token was a *terminator* or *operand* and the second was an
+   *initiator* or *operand*, then (unless you have juxtaposition defined) there
+   has to be exactly one infix operator between them possibly with postfix
+   operators before it and prefix operators after it.
+
+   So you find the first operator that can't be postfix and the last that can't
+   be prefix and count the operators that *can* be infix between them:
+
+	1. If there are more than one, the expression is ambiguous.
+	2. If there is one you select it as the infix and interpret all operators
+       before it as postfix and all operators after it as prefix.
+	3. If there are none. You consider juxtaposition.
+
+		1. If it's not defined, you have a syntax error.
+		2. Otherwise, if the last non-prefix is exactly before the first non-
+		   postfix, you act as if there was an infix operator there with the
+		   attributes of juxtaposition.
+		3. Otherwise, the expression is ambiguous.
+
+### Example
+
+Consider the expression `foo ! % * ! $ + bar` where `foo` and `bar` are operands
+and the operators have been declared to match the following table. Although
+there are two candidate infix operators, only `*` can actually be interpreted as
+such, because otherwise we would have a prefix operator (`$`) before an infix
+one (`+`) which is a syntax error.
+
+                 -------------------------------------
+                 prefix | v |   | v | v | v | v |
+                  infix |   |   | v |   |   | v |
+                 postfix| v | v | v | v |   |   |
+                 -------------------------------------
+                    foo | ! | % | * | ! | $ | + | bar
+                              ^   |   |   ^
+                              |   |   |   |
+                              |   +-------|-----> potentially prefix
+                              |       |   |
+                      last non-prefix |   |
+                                      |   |
+    potentially postfix <-------------+   |
+                                          |
+                                 first non-postfix
+
+                              ^           ^
+                              |           |
+          Only operators inside this range can be selected as infix.
+                          Only one actually is.
 
 ## Prerequisites
 
@@ -118,6 +184,7 @@ Note that there is no scanner, so tokens are separated by whitespace.
 ## Mirrors
 
 Currently the project exists in two different mirrors that are kept in sync:
+
 1. <https://github.com/avnomad/dop-parser>
 2. <https://bitbucket.org/avnomad/dop-parser>
 
@@ -141,7 +208,8 @@ evaluate to operators instead of values.
 
 ## Contributing
 
-In order to contribute, just open a pull request in either GitHub or BitBucket.
+In order to contribute, just fork the project and open a pull request in either
+GitHub or BitBucket.
 
 ## Notes
 
@@ -157,7 +225,6 @@ In order to contribute, just open a pull request in either GitHub or BitBucket.
 
 This is _free_ software. You can redistribute it and/or modify it under the
 terms of the [GNU General Public License][5] version 3 or later.
-
 
 
 [1]: https://dlang.org/
