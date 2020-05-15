@@ -16,7 +16,7 @@
  *	along with DOP Parser.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-import std.algorithm, std.range, std.exception, std.conv;
+import std.algorithm, std.range, std.exception, std.conv, std.format;
 import ast;
 
 enum Assoc {left,right};
@@ -493,17 +493,123 @@ unittest // positive tests
 
 unittest // negative tests
 {
-	immutable infix_operators = ["++":Op(8,Assoc.left),"%":Op(4,Assoc.right),"*":Op(2,Assoc.left),"/":Op(6,Assoc.left)];
-	immutable prefix_operators = ["++":6];
-	immutable postfix_operators = ["*":0];
-	
+	immutable infix_operators = ["+":Op(5, Assoc.left), "-":Op(5, Assoc.left), "*":Op(6, Assoc.left), "~": Op(7, Assoc.right)];
+	immutable prefix_operators = ["$":10, "-":10, "++":10, "~":10];
+	immutable postfix_operators = ["!":11, "*":11, "++":11, "~":11];
+	immutable all_operators = array(multiwayUnion([sort(infix_operators.keys), sort(prefix_operators.keys), sort(postfix_operators.keys)]));
+
 	Tup[string] initiators;
 	immutable Tup[string] separators;
 	Tup[string] terminators;
-	
-	assert(collectExceptionMsg(parseInfixExpression(infix_operators, prefix_operators, 
-		postfix_operators, initiators, separators, terminators, "p * ++ q % r".dup)
-	) == "Ambiguous expression: more than one assignment of fixities to operators is possible!");
+
+	immutable missing_both_operands = "There must be an operand in at least one side of an operator sequence!";
+	immutable missing_right_operand = "Only postfix operators can exist between an operand and a terminator (or separator or end of input)!";
+	immutable missing_left_operand = "Only prefix operators can exist between an initiator (or separator or start of input) and an operand!";
+	immutable no_op_no_juxtaposition = "Two consecutive operands, but juxtaposition is not defined!";
+	immutable no_infix_no_juxtaposition = "Two operands without any infix operator between them, but juxtaposition is not defined!";
+	immutable ambiguous_expression = "Ambiguous expression: more than one assignment of fixities to operators is possible!";
+
+	// only operators (1-4)
+	foreach(test_case ; chain(
+		all_operators,
+		map!(s => format!"%(%s%| %)"(s))(cartesianProduct(all_operators,all_operators)),
+		map!(s => format!"%(%s%| %)"(s))(cartesianProduct(all_operators,all_operators,all_operators)),
+		map!(s => format!"%(%s%| %)"(s))(cartesianProduct(all_operators,all_operators,all_operators,all_operators))
+	))
+		assert(collectExceptionMsg(parseInfixExpression(infix_operators, prefix_operators,
+			postfix_operators, initiators, separators, terminators, test_case)) == missing_both_operands);
+
+	immutable test_cases = [
+		// one operator and one operand
+		["a +", missing_right_operand],
+		["+ a", missing_left_operand],
+		["a $", missing_right_operand],
+		["! a", missing_left_operand],
+		["a -", missing_right_operand],
+		["* a", missing_left_operand],
+
+		// two operands
+		["a b", no_op_no_juxtaposition],
+
+		// three operands
+		["a b 0", no_op_no_juxtaposition],
+
+		// two operands and one operator
+		["a b +", no_op_no_juxtaposition],  ["a + b", ""/* not an error */     ],  ["+ a b", missing_left_operand],
+		["a b $", no_op_no_juxtaposition],  ["a $ b", no_infix_no_juxtaposition],  ["$ a b", no_op_no_juxtaposition],
+		["a b !", no_op_no_juxtaposition],  ["a ! b", no_infix_no_juxtaposition],  ["! a b", missing_left_operand],
+		["a b -", no_op_no_juxtaposition],  ["a - b", ""/* not an error */     ],  ["- a b", no_op_no_juxtaposition],
+		["a b *", no_op_no_juxtaposition],  ["a * b", ""/* not an error */     ],  ["* a b", missing_left_operand],
+		["a b ++", no_op_no_juxtaposition], ["a ++ b", no_infix_no_juxtaposition], ["++ a b", no_op_no_juxtaposition],
+		["a b ~", no_op_no_juxtaposition],  ["a ~ b", ""/* not an error */     ],  ["~ a b", no_op_no_juxtaposition],
+
+		// one operand and two operators
+		["a + +", missing_right_operand],  ["+ a +", missing_left_operand],   ["+ + a", missing_left_operand],
+		["a + $", missing_right_operand],  ["+ a $", missing_left_operand],   ["+ $ a", missing_left_operand],
+		["a + !", missing_right_operand],  ["+ a !", missing_left_operand],   ["+ ! a", missing_left_operand],
+		["a + -", missing_right_operand],  ["+ a -", missing_left_operand],   ["+ - a", missing_left_operand],
+		["a + *", missing_right_operand],  ["+ a *", missing_left_operand],   ["+ * a", missing_left_operand],
+		["a + ++", missing_right_operand], ["+ a ++", missing_left_operand],  ["+ ++ a", missing_left_operand],
+		["a + ~", missing_right_operand],  ["+ a ~", missing_left_operand],   ["+ ~ a", missing_left_operand],
+		["a $ +", missing_right_operand],  ["$ a +", missing_right_operand],  ["$ + a", missing_left_operand],
+		["a $ $", missing_right_operand],  ["$ a $", missing_right_operand],  ["$ $ a", ""/* not an error */],
+		["a $ !", missing_right_operand],  ["$ a !", ""/* not an error */],   ["$ ! a", missing_left_operand],
+		["a $ -", missing_right_operand],  ["$ a -", missing_right_operand],  ["$ - a", ""/* not an error */],
+		["a $ *", missing_right_operand],  ["$ a *", ""/* not an error */],   ["$ * a", missing_left_operand],
+		["a $ ++", missing_right_operand], ["$ a ++", ""/* not an error */],  ["$ ++ a", ""/* not an error */],
+		["a $ ~", missing_right_operand],  ["$ a ~", ""/* not an error */],   ["$ ~ a", ""/* not an error */],
+		["a ! +", missing_right_operand],  ["! a +", missing_left_operand],   ["! + a", missing_left_operand],
+		["a ! $", missing_right_operand],  ["! a $", missing_left_operand],   ["! $ a", missing_left_operand],
+		["a ! !", ""/* not an error */],   ["! a !", missing_left_operand],   ["! ! a", missing_left_operand],
+		["a ! -", missing_right_operand],  ["! a -", missing_left_operand],   ["! - a", missing_left_operand],
+		["a ! *", ""/* not an error */],   ["! a *", missing_left_operand],   ["! * a", missing_left_operand],
+		["a ! ++", ""/* not an error */],  ["! a ++", missing_left_operand],  ["! ++ a", missing_left_operand],
+		["a ! ~", ""/* not an error */],   ["! a ~", missing_left_operand],   ["! ~ a", missing_left_operand],
+		["a - +", missing_right_operand],  ["- a +", missing_right_operand],  ["- + a", missing_left_operand],
+		["a - $", missing_right_operand],  ["- a $", missing_right_operand],  ["- $ a", ""/* not an error */],
+		["a - !", missing_right_operand],  ["- a !", ""/* not an error */],   ["- ! a", missing_left_operand],
+		["a - -", missing_right_operand],  ["- a -", missing_right_operand],  ["- - a", ""/* not an error */],
+		["a - *", missing_right_operand],  ["- a *", ""/* not an error */],   ["- * a", missing_left_operand],
+		["a - ++", missing_right_operand], ["- a ++", ""/* not an error */],  ["- ++ a", ""/* not an error */],
+		["a - ~", missing_right_operand],  ["- a ~", ""/* not an error */],   ["- ~ a", ""/* not an error */],
+		["a * +", missing_right_operand],  ["* a +", missing_left_operand],   ["* + a", missing_left_operand],
+		["a * $", missing_right_operand],  ["* a $", missing_left_operand],   ["* $ a", missing_left_operand],
+		["a * !", ""/* not an error */],   ["* a !", missing_left_operand],   ["* ! a", missing_left_operand],
+		["a * -", missing_right_operand],  ["* a -", missing_left_operand],   ["* - a", missing_left_operand],
+		["a * *", ""/* not an error */],   ["* a *", missing_left_operand],   ["* * a", missing_left_operand],
+		["a * ++", ""/* not an error */],  ["* a ++", missing_left_operand],  ["* ++ a", missing_left_operand],
+		["a * ~", ""/* not an error */],   ["* a ~", missing_left_operand],   ["* ~ a", missing_left_operand],
+		["a ++ +", missing_right_operand], ["++ a +", missing_right_operand], ["++ + a", missing_left_operand],
+		["a ++ $", missing_right_operand], ["++ a $", missing_right_operand], ["++ $ a", ""/* not an error */],
+		["a ++ !", ""/* not an error */],  ["++ a !", ""/* not an error */],  ["++ ! a", missing_left_operand],
+		["a ++ -", missing_right_operand], ["++ a -", missing_right_operand], ["++ - a", ""/* not an error */],
+		["a ++ *", ""/* not an error */],  ["++ a *", ""/* not an error */],  ["++ * a", missing_left_operand],
+		["a ++ ++", ""/* not an error */], ["++ a ++", ""/* not an error */], ["++ ++ a", ""/* not an error */],
+		["a ++ ~", ""/* not an error */],  ["++ a ~", ""/* not an error */],  ["++ ~ a", ""/* not an error */],
+		["a ~ +", missing_right_operand],  ["~ a +", missing_right_operand],  ["~ + a", missing_left_operand],
+		["a ~ $", missing_right_operand],  ["~ a $", missing_right_operand],  ["~ $ a", ""/* not an error */],
+		["a ~ !", ""/* not an error */],   ["~ a !", ""/* not an error */],   ["~ ! a", missing_left_operand],
+		["a ~ -", missing_right_operand],  ["~ a -", missing_right_operand],  ["~ - a", ""/* not an error */],
+		["a ~ *", ""/* not an error */],   ["~ a *", ""/* not an error */],   ["~ * a", missing_left_operand],
+		["a ~ ++", ""/* not an error */],  ["~ a ++", ""/* not an error */],  ["~ ++ a", ""/* not an error */],
+		["a ~ ~", ""/* not an error */],   ["~ a ~", ""/* not an error */],   ["~ ~ a", ""/* not an error */],
+
+		// four operands
+		["a 1 b 0", no_op_no_juxtaposition],
+
+		// three operands one operator
+		// two operands two operators
+		// one operand three operators
+
+ 		["p * - q + r", ambiguous_expression],
+ 		// test with juxtaposition defined: ["a ++ b", Ambiguous expression: multiple valid positions for juxtaposition operator!]
+	];
+
+	foreach(test_case; test_cases)
+	{
+		assert(collectExceptionMsg(parseInfixExpression(infix_operators, prefix_operators,
+			postfix_operators, initiators, separators, terminators, test_case[0])) == test_case[1]);
+	} // end foreach
 } // end unittest
 
 
