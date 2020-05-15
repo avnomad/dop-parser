@@ -273,6 +273,8 @@ Expression parseInfixExpression(
 				}
 				else if(count == 0) // juxtaposition
 				{
+					enforce(null in infixOperators,
+						"Two operands without any infix operator between them, but juxtaposition is not defined!");
 					enforce(firstNonPost-lastNonPre == 1,
 						"Ambiguous expression: multiple valid positions for juxtaposition operator!");
 					// reduce postfix operators
@@ -282,8 +284,6 @@ Expression parseInfixExpression(
 						assert(stagedOperators[i].name in postfixOperators); // due to the way firstNonPost is calculated.
 						symbols[$-1] = new ExpressionAstNode("post " ~ stagedOperators[i].name,[cast(Expression)symbols[$-1]]);
 					} // end foreach
-					enforce(null in infixOperators,
-						"Two operands without any infix operator between them, but juxtaposition is not defined!");
 					dispatchToken(null);
 					stagedOperators = stagedOperators[firstNonPost..$];
 				} // end if
