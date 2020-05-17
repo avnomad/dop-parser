@@ -1,6 +1,7 @@
 # Travis CI configuration
 language: d
 sudo: false
+dist: trusty
 
 # Test against latest versions of dmd, gdc and ldc
 d:
@@ -10,7 +11,7 @@ d:
 
 install:
   # Download doveralls to current directory.
-  - wget -O doveralls "https://github.com/ColdenCullen/doveralls/releases/download/v1.3.1/doveralls_linux_travis"
+  - wget -O doveralls "https://github.com/ColdenCullen/doveralls/releases/download/v1.3.2/doveralls_linux_travis"
   - chmod +x doveralls
 
 script:
