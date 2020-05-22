@@ -59,7 +59,8 @@ Most of these are limitations of the implementation, not the algorithm but:
 ## Prerequisites
 
 In order to build the project you need to have a recent version of a
-[D compiler][1] and [dub package and build manager][2] installed.
+[D compiler][1] and [dub package and build manager][2] installed. Specific 
+version requirements can be found in `dub.sdl`.
 
 ## Build
 
