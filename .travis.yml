@@ -11,13 +11,12 @@ d:
 
 addons:
   apt:
-    update: true
     packages:
       - libcurl4-gnutls-dev # required by doveralls to run on bionic
 
 before_install:
   # Workaround until more recent versions of gdc become available through install.sh
-  - if [ "$DC" = "gdc" ]; then deactivate; sudo apt-get --assume-yes install gdc dub; fi
+  - if [ "$DC" = "gdc" ]; then deactivate; sudo apt-get update; sudo apt-get --assume-yes install gdc dub; fi
 
 install:
   # Download doveralls to current directory.
