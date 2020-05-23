@@ -3,20 +3,15 @@ language: d
 os: linux
 dist: bionic # Ubuntu 18.04 LTS (Bionic Beaver)
 
-# Test against minimum required versions of dmd, gdc and ldc
+# Test against minimum required versions of dmd and ldc
 d:
   - dmd-2.076.1
-  - gdc # bionic was selected to make gdc-8.4.0 available
   - ldc-1.6.0
 
 addons:
   apt:
     packages:
       - libcurl4-gnutls-dev # required by doveralls to run on bionic
-
-before_install:
-  # Workaround until more recent versions of gdc become available through install.sh
-  - if [ "$DC" = "gdc" ]; then deactivate; sudo apt-get update; sudo apt-get --assume-yes install gdc-8 dub; fi
 
 install:
   # Download doveralls to current directory.
