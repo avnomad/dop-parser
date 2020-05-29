@@ -245,6 +245,9 @@ Expression parseInfixExpression(
 				while(lastNonPre > -1 && stagedOperators[lastNonPre].name in prefixOperators)
 					lastNonPre--;
 
+				enforce(lastNonPre <= firstNonPost,
+					"A prefix or infix operator cannot appear before a postfix or infix operator without operand(s) between them!");
+
 				// count infix operators inside the range:
 				long count = 0, index = -1;
 				for(auto i = max(0,lastNonPre) ; i <= min(stagedOperators.length-1,firstNonPost) ; i++)
