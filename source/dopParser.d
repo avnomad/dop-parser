@@ -17,7 +17,7 @@
  */
 
 import std.algorithm, std.range, std.exception, std.conv, std.format;
-import ast;
+import ast, testUtilities;
 
 enum Assoc {left,right};
 
@@ -489,11 +489,9 @@ unittest // positive tests
 		["( a , b ) ++ ** ! ~ c", "(  , ( post ** , ( post ++ , ( ( , a, b))), ( pre ! , ( pre ~ , c)))"],
 	];
 
-	foreach(test_case; test_cases)
-	{
-		assert(parseInfixExpression(infix_operators, prefix_operators, postfix_operators,
-			initiators, separators, terminators, test_case[0]).serialize() == test_case[1]);
-	} // end foreach
+	runUnitTests!(test_input => parseInfixExpression(infix_operators, prefix_operators, postfix_operators,
+													initiators, separators, terminators, test_input).serialize()
+	)(test_cases);
 } // end unittest
 
 unittest // negative tests without juxtaposition
@@ -508,14 +506,15 @@ unittest // negative tests without juxtaposition
 	Tup[string] terminators;
 
 	// only operators (1-4)
-	foreach(test_case ; chain(
+	runUnitTests!(
+		test_input => collectExceptionMsg(parseInfixExpression(infix_operators, prefix_operators, postfix_operators,
+																initiators, separators, terminators, test_input))
+	)(array(chain(
 		all_operators,
 		map!(s => format!"%(%s%| %)"(s))(cartesianProduct(all_operators,all_operators)),
 		map!(s => format!"%(%s%| %)"(s))(cartesianProduct(all_operators,all_operators,all_operators)),
 		map!(s => format!"%(%s%| %)"(s))(cartesianProduct(all_operators,all_operators,all_operators,all_operators))
-	))
-		assert(collectExceptionMsg(parseInfixExpression(infix_operators, prefix_operators,
-			postfix_operators, initiators, separators, terminators, test_case)) == missing_both_operands);
+	).map!(s => [s, missing_both_operands])));
 
 	immutable test_cases = [
 		// one operator and one operand
@@ -764,11 +763,9 @@ unittest // negative tests without juxtaposition
 		["~ a ~ b", ""/* not an error */],      ["~ ~ a b", no_op_no_juxtaposition],
 	];
 
-	foreach(test_case; test_cases ~ common_test_cases)
-	{
-		assert(collectExceptionMsg(parseInfixExpression(infix_operators, prefix_operators,
-			postfix_operators, initiators, separators, terminators, test_case[0])) == test_case[1]);
-	} // end foreach
+	runUnitTests!(test_input => collectExceptionMsg(parseInfixExpression(infix_operators, prefix_operators,
+													postfix_operators, initiators, separators, terminators, test_input))
+	)(test_cases ~ common_test_cases);
 } // end unittest
 
 /**
@@ -1497,14 +1494,15 @@ unittest // negative tests with juxtaposition
 	Tup[string] terminators;
 
 	// only operators (1-4)
-	foreach(test_case ; chain(
+	runUnitTests!(
+		test_input => collectExceptionMsg(parseInfixExpression(infix_operators, prefix_operators, postfix_operators,
+																initiators, separators, terminators, test_input))
+	)(array(chain(
 		all_operators,
 		map!(s => format!"%(%s%| %)"(s))(cartesianProduct(all_operators,all_operators)),
 		map!(s => format!"%(%s%| %)"(s))(cartesianProduct(all_operators,all_operators,all_operators)),
 		map!(s => format!"%(%s%| %)"(s))(cartesianProduct(all_operators,all_operators,all_operators,all_operators))
-	))
-		assert(collectExceptionMsg(parseInfixExpression(infix_operators, prefix_operators,
-			postfix_operators, initiators, separators, terminators, test_case)) == missing_both_operands);
+	).map!(s => [s, missing_both_operands])));
 
 	immutable test_cases = [
 		// one operator and one operand
@@ -1753,11 +1751,9 @@ unittest // negative tests with juxtaposition
 		["~ a ~ b", ""/* not an error */],    ["~ ~ a b", ""/* not an error */],
 	];
 
-	foreach(test_case; test_cases ~ common_test_cases)
-	{
-		assert(collectExceptionMsg(parseInfixExpression(infix_operators, prefix_operators,
-			postfix_operators, initiators, separators, terminators, test_case[0])) == test_case[1]);
-	} // end foreach
+	runUnitTests!(test_input => collectExceptionMsg(parseInfixExpression(infix_operators, prefix_operators,
+													postfix_operators, initiators, separators, terminators, test_input))
+	)(test_cases ~ common_test_cases);
 } // end unittest
 
 mixin template Named()

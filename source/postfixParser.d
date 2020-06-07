@@ -16,7 +16,7 @@
  *	along with DOP Parser.  If not, see <http://www.gnu.org/licenses/>.
  */
 import std.array, std.range;
-import ast;
+import ast, testUtilities;
 
 // operators is a map from operator name to number of operands.
 Expression parsePostfixExpression(const int[string] operators, string input)
@@ -66,8 +66,5 @@ unittest
 		["1 ! 2 3 - $ $ ! *", "( * , ( ! , 1), ( ! , ( $ , ( $ , ( - , 2, 3)))))"],
 	];
 
-	foreach(test_case; test_cases)
-	{
-		assert(parsePostfixExpression(operators, test_case[0]).serialize() == test_case[1]);
-	} // end foreach
+	runUnitTests!(test_input => parsePostfixExpression(operators, test_input).serialize())(test_cases);
 } // end unittest
