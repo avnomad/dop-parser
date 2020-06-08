@@ -84,14 +84,14 @@ void main()
 						infix_operators[tokens[1]] = Op(to!int(tokens[2]),to!Assoc(tokens[3]));
 						break;
 					case Declaration.confix:
-						auto tup = Tup(tokens[1], "", tokens[2]);
+						immutable tup = Tup(tokens[1], "", tokens[2]);
 						initiators[tokens[1]] = terminators[tokens[2]] = tup;
 						break;
 					case Declaration.juxtaposition:
 						infix_operators[null] = Op(to!int(tokens[1]),to!Assoc(tokens[2]));
 						break;
 					case Declaration.list:
-						auto tup = Tup(tokens[1], tokens[2], tokens[3]);
+						immutable tup = Tup(tokens[1], tokens[2], tokens[3]);
 						initiators[tokens[1]] = separators[tokens[2]] = terminators[tokens[3]] = tup;
 						break;
 				} // end switch
