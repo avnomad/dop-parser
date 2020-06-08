@@ -509,12 +509,12 @@ unittest // negative tests without juxtaposition
 	runUnitTests!(
 		test_input => collectExceptionMsg(parseInfixExpression(infix_operators, prefix_operators, postfix_operators,
 																initiators, separators, terminators, test_input))
-	)(array(chain(
+	)(chain(
 		all_operators,
 		map!(s => format!"%(%s%| %)"(s))(cartesianProduct(all_operators,all_operators)),
 		map!(s => format!"%(%s%| %)"(s))(cartesianProduct(all_operators,all_operators,all_operators)),
 		map!(s => format!"%(%s%| %)"(s))(cartesianProduct(all_operators,all_operators,all_operators,all_operators))
-	).map!(s => [s, missing_both_operands])));
+	).map!(s => [s, missing_both_operands]));
 
 	immutable test_cases = [
 		// one operator and one operand
@@ -1497,12 +1497,12 @@ unittest // negative tests with juxtaposition
 	runUnitTests!(
 		test_input => collectExceptionMsg(parseInfixExpression(infix_operators, prefix_operators, postfix_operators,
 																initiators, separators, terminators, test_input))
-	)(array(chain(
+	)(chain(
 		all_operators,
 		map!(s => format!"%(%s%| %)"(s))(cartesianProduct(all_operators,all_operators)),
 		map!(s => format!"%(%s%| %)"(s))(cartesianProduct(all_operators,all_operators,all_operators)),
 		map!(s => format!"%(%s%| %)"(s))(cartesianProduct(all_operators,all_operators,all_operators,all_operators))
-	).map!(s => [s, missing_both_operands])));
+	).map!(s => [s, missing_both_operands]));
 
 	immutable test_cases = [
 		// one operator and one operand
