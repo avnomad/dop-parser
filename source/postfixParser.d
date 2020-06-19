@@ -53,11 +53,12 @@ Expression parsePostfixExpression(const int[string] operators, string input)
 	return stack.back();
 } // end function parsePostfixExpression
 
-unittest
+unittest // positive tests
 {
 	immutable operators = ["+":2,"-":2,"*":2,"/":2,"%":2,"?":3,"!":1,"$":1]; // (operator symbol,#operands) pairs
 
 	immutable test_cases = [
+		["0", "0"],
 		["2 3 +", "( + , 2, 3)"],
 		["2 3 -", "( - , 2, 3)"],
 		["2 3 *", "( * , 2, 3)"],
@@ -74,4 +75,31 @@ unittest
 	];
 
 	runUnitTests!(test_input => parsePostfixExpression(operators, test_input).serialize())(test_cases);
+} // end unittest
+
+unittest // negative tests
+{
+	immutable operators = ["!":1,"+":2,"?":3]; // (operator symbol,#operands) pairs
+
+	immutable test_cases = [
+		["", stack_not_exhausted],
+		["0 2", stack_not_exhausted],
+		["0 1 2", stack_not_exhausted],
+		["!", insufficient_operands],
+		["0 ! 1", stack_not_exhausted],
+		["0 1 !", stack_not_exhausted],
+		["+ 1 2 3", insufficient_operands],
+		["1 + 2 3", insufficient_operands],
+		["1 2 + 3", stack_not_exhausted],
+		["1 2 3 +", stack_not_exhausted],
+		["? 1 2 3 4", insufficient_operands],
+		["1 ? 2 3 4", insufficient_operands],
+		["1 2 ? 3 4", insufficient_operands],
+		["1 2 3 ? 4", stack_not_exhausted],
+		["1 2 3 4 ?", stack_not_exhausted],
+		["0 ! 1 + 2", stack_not_exhausted],
+		["0 ! + 1 2", insufficient_operands],
+	];
+
+	runUnitTests!(test_input => collectExceptionMsg(parsePostfixExpression(operators, test_input)))(test_cases);
 } // end unittest
