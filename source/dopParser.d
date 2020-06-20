@@ -67,6 +67,16 @@ private immutable no_valid_assignment =
 	"A prefix or infix operator cannot appear before a postfix or infix operator without operand(s) between them!";
 private immutable ambiguous_juxtaposition =
 	"Ambiguous expression: multiple valid positions for juxtaposition operator!";
+// Error messages related to confix and distfix operators:
+private immutable confix_imbalance =
+	"Initiator/Terminator mismatch and/or imbalance!";
+private immutable missing_separator_left =
+	"A separator must be preceded by an operable expression!";
+private immutable missing_separator_right =
+	"A separator must be followed by an operable expression!";
+private immutable no_op_no_juxt_init =
+	"An operable expression is followed by an initiator and juxtaposition is not defined! "
+	~ "(function calls are only supported as a juxtaposition of a function name and a tuple)";
 
 /* Note: right now, the operator, initiator, separator and terminator sets must be disjoint!! */
 /* 		 also, only one associativity is expected per precedence level. */
@@ -136,9 +146,7 @@ Expression parseInfixExpression(
 				"Currently an initiator can't be overloaded as an operator!");
 			if(cast(Expression)symbols[$-1])
 			{
-				enforce(null in infixOperators,
-					"An operable expression is followed by an initiator and juxtaposition is not defined! "
-				  ~ "(function calls are only supported as a juxtaposition of a function name and a tuple)");
+				enforce(null in infixOperators, no_op_no_juxt_init);
 				dispatchToken(null);	// handle as infix operator
 			}
 			// handle possible leading prefix operators
@@ -152,8 +160,7 @@ Expression parseInfixExpression(
 		}
 		else if(token in separators)	// separator
 		{
-			enforce(cast(Expression)symbols[$-1],
-				"A separator must be preceded by an operable expression!");
+			enforce(cast(Expression)symbols[$-1], missing_separator_left);
 			// shift
 			symbols ~= new Separator(token);
 			assert(separators[token].separator == token); // Sanity check. It should probably become a precondition.
@@ -168,12 +175,11 @@ Expression parseInfixExpression(
 				topAsInit = cast(Initiator)symbols[$-1];
 				if(topAsInit)
 				{
-					enforce(terminators[token].initiator == topAsInit.name,
-						"Initiator/Terminator mismatch and/or imbalance!");
+					enforce(terminators[token].initiator == topAsInit.name, confix_imbalance);
 					break;
 				}
 
-				assert(cast(Expression)symbols[$-1]); // any syntax errors should have already be emitted by now...
+				enforce(cast(Expression)symbols[$-1], missing_separator_right);
 				if(cast(Operator)symbols[$-2])
 				{	// reduce
 					enforce(cast(Expression)symbols[$-3], // we may have already checked this...
