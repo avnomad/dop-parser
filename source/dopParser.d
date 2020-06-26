@@ -58,7 +58,7 @@ private immutable missing_right_operand =
 private immutable missing_left_operand =
 	"Only prefix operators can exist between an initiator (or separator or start of input) and an operand!";
 private immutable no_op_no_juxtaposition =
-	"Two consecutive operands, but juxtaposition is not defined!";
+	"Two consecutive operable expressions, but juxtaposition is not defined!";
 private immutable no_infix_no_juxtaposition =
 	"Two operands without any infix operator between them, but juxtaposition is not defined!";
 private immutable ambiguous_expression =
@@ -74,9 +74,6 @@ private immutable missing_separator_left =
 	"A separator must be preceded by an operable expression!";
 private immutable missing_separator_right =
 	"A separator must be followed by an operable expression!";
-private immutable no_op_no_juxt_init =
-	"An operable expression is followed by an initiator and juxtaposition is not defined! "
-	~ "(function calls are only supported as a juxtaposition of a function name and a tuple)";
 
 /* Note: right now, the operator, initiator, separator and terminator sets must be disjoint!! */
 /* 		 also, only one associativity is expected per precedence level. */
@@ -146,7 +143,7 @@ Expression parseInfixExpression(
 				"Currently an initiator can't be overloaded as an operator!");
 			if(cast(Expression)symbols[$-1])
 			{
-				enforce(null in infixOperators, no_op_no_juxt_init);
+				assert(null in infixOperators);
 				dispatchToken(null);	// handle as infix operator
 			}
 			// handle possible leading prefix operators
@@ -221,14 +218,14 @@ Expression parseInfixExpression(
 			assert(token !in prefixOperators && token !in postfixOperators); // should become a precondition of dispatchToken
 			if(cast(Expression)symbols[$-1])
 			{
-				enforce(null in infixOperators, no_op_no_juxtaposition);
+				assert(null in infixOperators);
 				dispatchToken(null);	// handle as infix operator
 			}
 			// reduce possible leading prefix operators
 			Expression temp = new LiteralOperand(token);
 			while(!stagedOperators.empty)
 			{
-				enforce(stagedOperators[$-1].name in prefixOperators, missing_left_operand);
+				assert(stagedOperators[$-1].name in prefixOperators);
 				temp = new ExpressionAstNode("pre " ~ stagedOperators[$-1].name,[temp]);
 				stagedOperators = stagedOperators[0..$-1];
 			} // end while
@@ -246,24 +243,38 @@ Expression parseInfixExpression(
 			return;
 		} // end if
 
-		if(!stagedOperators.empty)
-		{
-			if(cast(Initiator)symbols[$-1] || cast(Separator)symbols[$-1])
-			{
-				enforce(token !in separators && token !in terminators, missing_both_operands);
+		assert(!cast(Operator)symbols[$-1]);
+		// Since neither token nor top of the stack are operators, there are
+		// exactly 4 possibilities:
+		if(cast(Initiator)symbols[$-1] || cast(Separator)symbols[$-1])
+		{ // preceding token was an initiator or separator
+			if(token in terminators || token in separators)
+			{ // following token is a terminator or separator
+				enforce(stagedOperators.empty, missing_both_operands);
 			}
-			else if(token in separators || token in terminators)
-			{
+			else
+			{ // following token is an initiator or operand
 				foreach(operator; stagedOperators)
 				{
-					assert(cast(Expression)symbols[$-1]); // it's not an initiator, separator or terminator and there are staged operators.
+					enforce(operator.name in prefixOperators, missing_left_operand);
+					// reduction will be done later in dispatchToken
+				} // end foreach
+			} // end else
+		}
+		else
+		{ // preceding token was a terminator or operand
+			if(token in terminators || token in separators)
+			{ // following token is a terminator or separator
+				foreach(operator; stagedOperators)
+				{
 					enforce(operator.name in postfixOperators, missing_right_operand);
+					assert(cast(Expression)symbols[$-1]); // the top of the stack is something we can operate on.
 					symbols[$-1] = new ExpressionAstNode("post " ~ operator.name,[cast(Expression)symbols[$-1]]);
 				} // end foreach
 				stagedOperators = [];
 			}
-			else // token should be initiator or operand
-			{
+			else
+			{ // following token is an initiator or operand
 				assert(cast(Expression)symbols[$-1]); // can't be a terminator and we've checked for initiator and separator and there are staged operators.
 				long firstNonPost = 0;	// from the left
 				while(firstNonPost < stagedOperators.length && stagedOperators[firstNonPost].name in postfixOperators)
@@ -301,7 +312,8 @@ Expression parseInfixExpression(
 				}
 				else if(count == 0) // juxtaposition
 				{
-					enforce(null in infixOperators, no_infix_no_juxtaposition);
+					enforce(null in infixOperators,
+						stagedOperators.empty ? no_op_no_juxtaposition : no_infix_no_juxtaposition);
 					enforce(firstNonPost-lastNonPre == 1, ambiguous_juxtaposition);
 					// reduce postfix operators
 					foreach(i; 0..firstNonPost)
@@ -1814,10 +1826,10 @@ unittest // negative tests with distfix and confix operators and without juxtapo
 		["[ ]", ""/* not an error */  ], ["] ]", confix_imbalance      ],
 
 		// three tokens
-		["( ( (", confix_imbalance      ], ["( , (", missing_separator_left ], ["( ) (", no_op_no_juxt_init     ],
+		["( ( (", confix_imbalance      ], ["( , (", missing_separator_left ], ["( ) (", no_op_no_juxtaposition ],
 		["( ( ,", missing_separator_left], ["( , ,", missing_separator_left ], ["( ) ,", missing_separator_right],
 		["( ( )", confix_imbalance      ], ["( , )", missing_separator_left ], ["( ) )", confix_imbalance       ],
-		["( ( [", confix_imbalance      ], ["( , [", missing_separator_left ], ["( ) [", no_op_no_juxt_init     ],
+		["( ( [", confix_imbalance      ], ["( , [", missing_separator_left ], ["( ) [", no_op_no_juxtaposition ],
 		["( ( ]", confix_imbalance      ], ["( , ]", missing_separator_left ], ["( ) ]", confix_imbalance       ],
 
 		["( [ (", confix_imbalance      ], ["( ] (", confix_imbalance       ],
@@ -1856,10 +1868,10 @@ unittest // negative tests with distfix and confix operators and without juxtapo
 		["[ ( [", confix_imbalance      ], ["[ , [", missing_separator_left ], ["[ ) [", confix_imbalance       ],
 		["[ ( ]", confix_imbalance      ], ["[ , ]", missing_separator_left ], ["[ ) ]", confix_imbalance       ],
 
-		["[ [ (", confix_imbalance      ], ["[ ] (", no_op_no_juxt_init     ],
+		["[ [ (", confix_imbalance      ], ["[ ] (", no_op_no_juxtaposition ],
 		["[ [ ,", missing_separator_left], ["[ ] ,", missing_separator_right],
 		["[ [ )", confix_imbalance      ], ["[ ] )", confix_imbalance       ],
-		["[ [ [", confix_imbalance      ], ["[ ] [", no_op_no_juxt_init     ],
+		["[ [ [", confix_imbalance      ], ["[ ] [", no_op_no_juxtaposition ],
 		["[ [ ]", confix_imbalance      ], ["[ ] ]", confix_imbalance       ],
 
 		["] ( (", confix_imbalance      ], ["] , (", confix_imbalance       ], ["] ) (", confix_imbalance      ],
