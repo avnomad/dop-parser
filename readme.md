@@ -59,7 +59,7 @@ Most of these are limitations of the implementation, not the algorithm but:
 ## Prerequisites
 
 In order to build the project you need to have a recent version of a
-[D compiler][1] and [dub package and build manager][2] installed. Specific 
+[D compiler][1] and [dub package and build manager][2] installed. Specific
 version requirements can be found in `dub.sdl`.
 
 ## Build
@@ -232,7 +232,6 @@ GitHub or BitBucket.
 
 This is _free_ software. You can redistribute it and/or modify it under the
 terms of the [GNU General Public License][5] version 3 or later.
-
 
 [1]: https://dlang.org/
 [2]: http://code.dlang.org/getting_started
