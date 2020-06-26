@@ -19,7 +19,7 @@
  */
 
 import std.stdio, std.string, std.array, std.conv;
-import dopParser;
+import dop_parser;
 
 version(Windows)
 {
