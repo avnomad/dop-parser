@@ -9,7 +9,7 @@ if (isInputRange!(Unqual!Range))
 	size_t n_tests_failed = 0;
 	size_t n_tests_total = 0;
 
-	writefln("Started running test suite at %-56s on \33[34m%-28s\33[0m.",
+	writefln("Started running test suite at %-85s on \33[34m%-28s\33[0m.",
 			format!"\33[35m%s\33[0m:\33[33m%s\33[0m"(file, line), Clock.currTime.toSimpleString);
 	foreach(test_case; test_cases)
 	{
@@ -40,7 +40,7 @@ if (isInputRange!(Unqual!Range))
 	} // end foreach
 
 	writef("Finished running \33[34m%5s\33[0m unit test(s) in %s", n_tests_total,
-				leftJustify(format!"\33[36m%s\33[0m"(sw.peek), 45, '.'));
+				leftJustify(format!"\33[36m%s\33[0m"(sw.peek), 75, '.'));
 	if(n_tests_failed == 0)
 		writefln("all tests \33[32mpassed\33[0m!");
 	else

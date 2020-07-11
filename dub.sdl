@@ -4,8 +4,5 @@ authors "Vaptistis Anogeianakis <nomad@cornercase.gr>"
 copyright "Copyright ⓒ 2012-2013, 2018. Vaptistis Anogeianakis"
 license "GPL-3.0 or later"
 
-sourcePaths "source" "test"
-importPaths "source" "test"
 targetPath "build"
-
 toolchainRequirements dmd=">=2.076.0" ldc=">=1.6.0" gdc=">=8.4.0"
