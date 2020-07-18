@@ -1,7 +1,7 @@
 name "dop-parser"
 description "An operator precedence parser variation that adds a disambiguation step in order to support overloaded fixities, juxtaposition and other features."
 authors "Vaptistis Anogeianakis <nomad@cornercase.gr>"
-copyright "Copyright ⓒ 2012-2013, 2018. Vaptistis Anogeianakis"
+copyright "Copyright ⓒ 2012-2013, 2018, 2020. Vaptistis Anogeianakis"
 license "GPL-3.0 or later"
 
 targetPath "build"

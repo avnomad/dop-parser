@@ -1,4 +1,4 @@
-//	Copyright (C) 2012-2013, 2018 Vaptistis Anogeianakis <nomad@cornercase.gr>
+//	Copyright (C) 2012-2013, 2018, 2020 Vaptistis Anogeianakis <nomad@cornercase.gr>
 /*
  *	This file is part of DOP Parser.
  *
