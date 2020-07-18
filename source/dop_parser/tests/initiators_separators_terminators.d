@@ -17,6 +17,7 @@
  * along with DOP Parser.  If not, see <http://www.gnu.org/licenses/>.
  */
 module dop_parser.tests.initiators_separators_terminators;
+@safe:
 
 import std.algorithm, std.range, std.exception, std.format;
 

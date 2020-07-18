@@ -17,5 +17,6 @@
  * along with DOP Parser.  If not, see <http://www.gnu.org/licenses/>.
  */
 module dop_parser;
+@safe:
 
 public import dop_parser.dop_parser;

@@ -17,8 +17,25 @@
  * along with DOP Parser.  If not, see <http://www.gnu.org/licenses/>.
  */
 module test_utilities;
+@safe:
 
-import std.stdio, std.string, std.datetime.stopwatch, std.datetime.systime, std.range.primitives, std.traits;
+import std.stdio, std.string, std.datetime.stopwatch, std.datetime.systime, std.range.primitives, std.traits,
+		std.typecons;
+
+@trusted auto resultOf(alias function_to_run, argument_types...)(argument_types arguments)
+{
+	string actualOutput;
+	Throwable thrownObject;
+	try
+		actualOutput = function_to_run(arguments);
+	catch(Throwable thrown)
+	{
+		thrownObject = thrown;
+		actualOutput = thrown.msg;
+	} // end catch
+
+	return tuple!("returned_value", "thrown_object")(actualOutput, thrownObject);
+}
 
 // Test case numbering is one-based.
 // Should only be used in unittest blocks where it's safe to catch AssertErrors.
@@ -34,27 +51,18 @@ if (isInputRange!(Unqual!Range))
 	foreach(test_case; test_cases)
 	{
 		++n_tests_total;
+		auto result = resultOf!function_under_test(test_case[0]);
 
-		string actualOutput;
-		Throwable thrownObject;
-		try
-			actualOutput = function_under_test(test_case[0]);
-		catch(Throwable thrown)
-		{
-			thrownObject = thrown;
-			actualOutput = thrown.msg;
-		} // end catch
-
-		if(actualOutput != test_case[1])
+		if(result.returned_value != test_case[1])
 		{
 			++n_tests_failed;
 			writefln("Test #\33[33m%s\33[0m with input '\33[33m%s\33[0m' \33[31mfailed\33[0m!",
 						n_tests_total, test_case[0]);
 			writefln("    Expected output: '\33[35m%s\33[0m'", test_case[1]);
-			writefln("    Actual output:   '\33[35m%s\33[0m'", actualOutput);
-			if(thrownObject)
+			writefln("    Actual output:   '\33[35m%s\33[0m'", result.returned_value);
+			if(result.thrown_object)
 				writefln("    Throwable originated at: \33[34m%s\33[0m:\33[33m%s\33[0m",
-						thrownObject.file, thrownObject.line);
+						result.thrown_object.file, result.thrown_object.line);
 			writeln();
 		}
 	} // end foreach

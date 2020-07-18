@@ -18,6 +18,7 @@
  * along with DOP Parser.  If not, see <http://www.gnu.org/licenses/>.
  */
 module main;
+@safe:
 
 import std.stdio, std.string, std.array, std.conv;
 import dop_parser;
@@ -31,7 +32,7 @@ else
 	auto exitMethod = "ctrl+d";
 }
 
-void main()
+@system void main()
 {
 	// Operator tables
 	Op[string] infix_operators;

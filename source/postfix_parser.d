@@ -17,6 +17,7 @@
  * along with DOP Parser.  If not, see <http://www.gnu.org/licenses/>.
  */
 module postfix_parser;
+@safe:
 
 import std.array, std.range, std.exception;
 import ast, test_utilities;

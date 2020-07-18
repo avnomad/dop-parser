@@ -17,12 +17,13 @@
  * along with DOP Parser.  If not, see <http://www.gnu.org/licenses/>.
  */
 module dop_parser.tests.operators_juxtaposition_enabled;
+@safe:
 
 import std.algorithm, std.range, std.exception, std.format;
 
 import dop_parser, test_utilities, dop_parser.tests.operators_common;
 
-unittest // negative tests with juxtaposition
+@system unittest // negative tests with juxtaposition
 {
 	immutable infix_operators = ["+":Op(5, Assoc.left), "-":Op(5, Assoc.left), "*":Op(6, Assoc.left),
 								 "~": Op(7, Assoc.right), null:Op(8,Assoc.left)];

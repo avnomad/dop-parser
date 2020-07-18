@@ -17,6 +17,7 @@
  * along with DOP Parser.  If not, see <http://www.gnu.org/licenses/>.
  */
 module dop_parser.dop_parser;
+@safe:
 
 import std.algorithm, std.range, std.exception, std.conv, std.format;
 import ast, test_utilities;

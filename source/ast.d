@@ -17,6 +17,7 @@
  * along with DOP Parser.  If not, see <http://www.gnu.org/licenses/>.
  */
 module ast;
+@safe:
 
 interface Symbol{}
 interface Operand : Symbol{}
