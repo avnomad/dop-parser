@@ -1,6 +1,7 @@
 syntax: glob
 build
 docs
+doc
 .dub
 .vscode
 *.lst
