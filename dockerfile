@@ -10,8 +10,7 @@ RUN apt-get update && apt-get install --assume-yes gdc ldc \
 													libcurl4-gnutls-dev \
 													wget libcurl4 gcc \
 													curl gpg xz-utils
-# Latest dmd isn't currently used but the package is installed to get the latest
-# version of dub.
+# Get the latest version of dmd and dub.
 RUN wget http://downloads.dlang.org/releases/2.x/2.092.0/dmd_2.092.0-0_amd64.deb \
 	&& dpkg --install dmd_2.092.0-0_amd64.deb \
 	&& rm dmd_2.092.0-0_amd64.deb
@@ -29,6 +28,17 @@ RUN ./install.sh install dmd-2.076.1
 RUN ./install.sh install ldc-1.6.0
 # Add source and project files and run one build with each toolchain.
 ADD . /code
-RUN cd /code && dub test --compiler=/root/dlang/dmd-2.076.1/linux/bin64/dmd
-RUN cd /code && dub test --compiler=/root/dlang/ldc-1.6.0/bin/ldc2
-RUN cd /code && dub test --compiler=gdc
+# Below, remove `dub build` lines once https://github.com/dlang/dub/issues/1981
+# is fixed.
+RUN cd /code && dub test  --compiler=/root/dlang/dmd-2.076.1/linux/bin64/dmd
+RUN cd /code && dub build --compiler=/root/dlang/dmd-2.076.1/linux/bin64/dmd
+RUN cd /code && dub test  --compiler=/root/dlang/ldc-1.6.0/bin/ldc2
+RUN cd /code && dub build --compiler=/root/dlang/ldc-1.6.0/bin/ldc2
+RUN cd /code && dub test  --compiler=gdc
+RUN cd /code && dub build --compiler=gdc
+# Also build with latest version of dmd to check for regressions affecting this
+# project.
+RUN cd /code && dub test  --compiler=dmd
+# Below, remove `--build=release` once
+# https://issues.dlang.org/show_bug.cgi?id=21071 is fixed.
+RUN cd /code && dub build --compiler=dmd --build=release
